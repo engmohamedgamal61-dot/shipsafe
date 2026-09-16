@@ -1,0 +1,284 @@
+/**
+ * Hand-written mirror of `supabase/migrations/0001_init.sql`.
+ *
+ * When a real Supabase project exists, replace this with generated types
+ * (`supabase gen types typescript`) — the shape is kept intentionally
+ * close to the generator's output so that swap is a diff, not a rewrite.
+ */
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          email: string;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          email: string;
+          created_at?: string;
+        };
+        Update: Partial<{
+          id: string;
+          email: string;
+          created_at: string;
+        }>;
+      };
+      workspaces: {
+        Row: {
+          id: string;
+          name: string;
+          slug: string;
+          created_by: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          slug: string;
+          created_by: string;
+          created_at?: string;
+        };
+        Update: Partial<{
+          id: string;
+          name: string;
+          slug: string;
+          created_by: string;
+          created_at: string;
+        }>;
+      };
+      workspace_memberships: {
+        Row: {
+          workspace_id: string;
+          user_id: string;
+          role: string;
+          created_at: string;
+        };
+        Insert: {
+          workspace_id: string;
+          user_id: string;
+          role: string;
+          created_at?: string;
+        };
+        Update: Partial<{
+          workspace_id: string;
+          user_id: string;
+          role: string;
+          created_at: string;
+        }>;
+      };
+      repositories: {
+        Row: {
+          id: string;
+          workspace_id: string;
+          provider: string;
+          external_repository_id: string | null;
+          name: string;
+          full_name: string;
+          default_branch: string;
+          connected_at: string;
+        };
+        Insert: {
+          id?: string;
+          workspace_id: string;
+          provider: string;
+          external_repository_id?: string | null;
+          name: string;
+          full_name: string;
+          default_branch: string;
+          connected_at?: string;
+        };
+        Update: Partial<{
+          id: string;
+          workspace_id: string;
+          provider: string;
+          external_repository_id: string | null;
+          name: string;
+          full_name: string;
+          default_branch: string;
+          connected_at: string;
+        }>;
+      };
+      pull_requests: {
+        Row: {
+          id: string;
+          repository_id: string;
+          external_pull_request_id: string | null;
+          number: number;
+          title: string;
+          source_branch: string;
+          target_branch: string;
+          author_login: string;
+          changed_files: unknown;
+          diff_text: string;
+          head_sha: string;
+          base_sha: string;
+          opened_at: string;
+        };
+        Insert: {
+          id?: string;
+          repository_id: string;
+          external_pull_request_id?: string | null;
+          number: number;
+          title: string;
+          source_branch: string;
+          target_branch: string;
+          author_login: string;
+          changed_files: unknown;
+          diff_text: string;
+          head_sha: string;
+          base_sha: string;
+          opened_at?: string;
+        };
+        Update: Partial<{
+          id: string;
+          repository_id: string;
+          external_pull_request_id: string | null;
+          number: number;
+          title: string;
+          source_branch: string;
+          target_branch: string;
+          author_login: string;
+          changed_files: unknown;
+          diff_text: string;
+          head_sha: string;
+          base_sha: string;
+          opened_at: string;
+        }>;
+      };
+      reviews: {
+        Row: {
+          id: string;
+          pull_request_id: string;
+          status: string;
+          verdict: string | null;
+          summary: string | null;
+          failure_reason: string | null;
+          reviewed_head_sha: string;
+          reviewed_base_sha: string | null;
+          rule_version: string;
+          prompt_version: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          pull_request_id: string;
+          status: string;
+          verdict?: string | null;
+          summary?: string | null;
+          failure_reason?: string | null;
+          reviewed_head_sha: string;
+          reviewed_base_sha?: string | null;
+          rule_version?: string;
+          prompt_version?: string | null;
+          started_at?: string | null;
+          completed_at?: string | null;
+        };
+        Update: Partial<{
+          id: string;
+          pull_request_id: string;
+          status: string;
+          verdict: string | null;
+          summary: string | null;
+          failure_reason: string | null;
+          reviewed_head_sha: string;
+          reviewed_base_sha: string | null;
+          rule_version: string;
+          prompt_version: string | null;
+          started_at: string | null;
+          completed_at: string | null;
+        }>;
+      };
+      reviewer_runs: {
+        Row: {
+          id: string;
+          review_id: string;
+          reviewer: string;
+          status: string;
+          summary: string | null;
+          error_message: string | null;
+          provider: string | null;
+          model: string | null;
+          request_id: string | null;
+          input_tokens: number | null;
+          output_tokens: number | null;
+          latency_ms: number | null;
+          attempt: number;
+          started_at: string | null;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          review_id: string;
+          reviewer: string;
+          status: string;
+          summary?: string | null;
+          error_message?: string | null;
+          provider?: string | null;
+          model?: string | null;
+          request_id?: string | null;
+          input_tokens?: number | null;
+          output_tokens?: number | null;
+          latency_ms?: number | null;
+          attempt?: number;
+          started_at?: string | null;
+          completed_at?: string | null;
+        };
+        Update: Partial<{
+          id: string;
+          review_id: string;
+          reviewer: string;
+          status: string;
+          summary: string | null;
+          error_message: string | null;
+          provider: string | null;
+          model: string | null;
+          request_id: string | null;
+          input_tokens: number | null;
+          output_tokens: number | null;
+          latency_ms: number | null;
+          attempt: number;
+          started_at: string | null;
+          completed_at: string | null;
+        }>;
+      };
+      findings: {
+        Row: {
+          id: string;
+          reviewer_run_id: string;
+          severity: string;
+          title: string;
+          description: string;
+          file_path: string | null;
+          line_start: number | null;
+          line_end: number | null;
+          category: string;
+        };
+        Insert: {
+          id?: string;
+          reviewer_run_id: string;
+          severity: string;
+          title: string;
+          description: string;
+          file_path?: string | null;
+          line_start?: number | null;
+          line_end?: number | null;
+          category: string;
+        };
+        Update: Partial<{
+          id: string;
+          reviewer_run_id: string;
+          severity: string;
+          title: string;
+          description: string;
+          file_path: string | null;
+          line_start: number | null;
+          line_end: number | null;
+          category: string;
+        }>;
+      };
+    };
+  };
+}
