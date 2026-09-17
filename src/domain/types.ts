@@ -147,6 +147,9 @@ export interface Finding {
   lineStart: number | null;
   lineEnd: number | null;
   category: string;
+  recommendation: string;
+  /** Model/heuristic's own confidence in this finding, 0 (guess) to 1 (certain). */
+  confidence: number;
 }
 
 /** Execution metadata for one provider call — never raw chain-of-thought. */
@@ -196,6 +199,14 @@ export interface Review {
   /** Version of the review-engine rule set that produced this review. */
   ruleVersion: string;
   promptVersion: string | null;
+  /**
+   * True when the PR's diff/changed-file list exceeded the ingest limits
+   * (see `src/server/github/pr-hardening.ts`) and was cut before review —
+   * surfaced so the dashboard never presents a truncated review as a
+   * complete one.
+   */
+  diffTruncated: boolean;
+  changedFilesTruncated: boolean;
   startedAt: string | null;
   completedAt: string | null;
   reviewerRuns: ReviewerRun[];

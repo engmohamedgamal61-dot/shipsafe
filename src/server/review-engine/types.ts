@@ -8,6 +8,15 @@ export interface ReviewContext {
   targetBranch: string;
   changedFiles: ChangedFile[];
   diffText: string;
+  /**
+   * True when `diffText`/`changedFiles` were cut short of the PR's actual
+   * size by `src/server/github/pr-hardening.ts`. A real `AIProvider` must
+   * tell the model explicitly when this is set — see
+   * `src/server/review-engine/providers/prompt.ts` — rather than letting
+   * it review a partial diff as if it were the whole PR.
+   */
+  diffTruncated: boolean;
+  changedFilesTruncated: boolean;
 }
 
 export type { DiffReviewerKind };

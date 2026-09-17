@@ -34,6 +34,17 @@ const envSchema = z.object({
   GITHUB_APP_PRIVATE_KEY: z.string().min(1).optional(),
   GITHUB_WEBHOOK_SECRET: z.string().min(1).optional(),
 
+  // --- AI provider (optional — defaults to the deterministic mock) ---
+  // Every self-hoster brings their own Anthropic account; there is no
+  // "ShipSafe's own" key. See docs/ARCHITECTURE.md § AI Provider.
+  AI_PROVIDER: z.enum(["mock", "anthropic"]).default("mock"),
+  ANTHROPIC_API_KEY: z.string().min(1).optional(),
+  ANTHROPIC_MODEL: z.string().min(1).default("claude-sonnet-5"),
+  // Cost/usage ceilings — see docs/ARCHITECTURE.md § Cost & Usage Control.
+  AI_MAX_TOKENS_PER_REVIEWER: z.coerce.number().int().positive().default(4096),
+  AI_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(30_000),
+  AI_MAX_CONCURRENT_REVIEWERS: z.coerce.number().int().positive().default(3),
+
   NODE_ENV: z
     .enum(["development", "test", "production"])
     .default("development"),
@@ -48,6 +59,12 @@ const parsed = envSchema.safeParse({
   GITHUB_APP_SLUG: process.env.GITHUB_APP_SLUG,
   GITHUB_APP_PRIVATE_KEY: process.env.GITHUB_APP_PRIVATE_KEY,
   GITHUB_WEBHOOK_SECRET: process.env.GITHUB_WEBHOOK_SECRET,
+  AI_PROVIDER: process.env.AI_PROVIDER,
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
+  ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL,
+  AI_MAX_TOKENS_PER_REVIEWER: process.env.AI_MAX_TOKENS_PER_REVIEWER,
+  AI_REQUEST_TIMEOUT_MS: process.env.AI_REQUEST_TIMEOUT_MS,
+  AI_MAX_CONCURRENT_REVIEWERS: process.env.AI_MAX_CONCURRENT_REVIEWERS,
   NODE_ENV: process.env.NODE_ENV,
 });
 
@@ -81,6 +98,16 @@ export const isGitHubConfigured = Boolean(
     env.GITHUB_APP_SLUG &&
     env.GITHUB_APP_PRIVATE_KEY &&
     env.GITHUB_WEBHOOK_SECRET,
+);
+
+/**
+ * True when `AI_PROVIDER=anthropic` AND a key is actually present. If
+ * `AI_PROVIDER=anthropic` is set without a key, the composition root falls
+ * back to the mock provider rather than silently sending unauthenticated
+ * requests — see `src/server/container.ts`.
+ */
+export const isAnthropicConfigured = Boolean(
+  env.AI_PROVIDER === "anthropic" && env.ANTHROPIC_API_KEY,
 );
 
 /** The GitHub App's PEM private key, with escaped `\n` sequences un-escaped. */

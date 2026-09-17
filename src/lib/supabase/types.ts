@@ -206,6 +206,8 @@ export interface Database {
           prompt_version: string | null;
           started_at: string | null;
           completed_at: string | null;
+          diff_truncated: boolean;
+          changed_files_truncated: boolean;
         };
         Insert: {
           id?: string;
@@ -220,6 +222,8 @@ export interface Database {
           prompt_version?: string | null;
           started_at?: string | null;
           completed_at?: string | null;
+          diff_truncated?: boolean;
+          changed_files_truncated?: boolean;
         };
         Update: Partial<{
           id: string;
@@ -234,6 +238,8 @@ export interface Database {
           prompt_version: string | null;
           started_at: string | null;
           completed_at: string | null;
+          diff_truncated: boolean;
+          changed_files_truncated: boolean;
         }>;
         Relationships: [];
       };
@@ -302,6 +308,8 @@ export interface Database {
           line_start: number | null;
           line_end: number | null;
           category: string;
+          recommendation: string;
+          confidence: number;
         };
         Insert: {
           id?: string;
@@ -313,6 +321,8 @@ export interface Database {
           line_start?: number | null;
           line_end?: number | null;
           category: string;
+          recommendation: string;
+          confidence: number;
         };
         Update: Partial<{
           id: string;
@@ -324,6 +334,8 @@ export interface Database {
           line_start: number | null;
           line_end: number | null;
           category: string;
+          recommendation: string;
+          confidence: number;
         }>;
         Relationships: [];
       };

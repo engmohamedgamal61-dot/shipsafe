@@ -233,15 +233,22 @@ test coverage) and why each is safe to defer.
    as Phase 1 — see the next item.
 
 ### Phase 2, remaining (not built yet)
-- `AnthropicProvider` / `AnthropicJudgeProvider` — real LLM-backed agents
-  implementing the same `AIProvider` / `ReleaseJudgePort` interfaces,
-  replacing/augmenting the heuristic mock implementations
 - GitHub PR inline comments + a status check that can gate merge, keyed
   strictly off `reviewed_head_sha`
 - "Fix with AI": generate a repair branch from findings, re-run review
   (as a new `Review` row against the new head SHA)
 - Background job runner for long-running reviews (queue instead of
   request/response)
+
+### Phase 3
+
+`AnthropicProvider` / `AnthropicJudgeProvider` — real Claude-backed agents
+implementing the same `AIProvider` / `ReleaseJudgePort` interfaces as the
+heuristic mocks, selected via `AI_PROVIDER=anthropic` (see
+[ARCHITECTURE.md § AI Provider abstraction](./ARCHITECTURE.md#ai-provider-abstraction)).
+**Built.** Demo mode and `AI_PROVIDER=mock` (the default) are unaffected —
+no Anthropic credentials required to run ShipSafe. "Fix with AI" above
+remains out of scope for this phase.
 - Billing, workspace invitations (the `workspace_memberships` role model
   from Phase 1.1 is what this builds on)
 - E2E test suite (Playwright) once UI stabilizes

@@ -40,6 +40,12 @@ export function ReviewerStatusList({ runs }: { runs: ReviewerRun[] }) {
               {run.summary && (
                 <p className="mt-0.5 text-sm text-muted-foreground">{run.summary}</p>
               )}
+              {run.providerMetadata && (
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {run.providerMetadata.provider} · {run.providerMetadata.model} ·{" "}
+                  {(run.providerMetadata.latencyMs / 1000).toFixed(1)}s
+                </p>
+              )}
               {total > 0 && (
                 <div className="mt-1.5 flex gap-3 text-xs text-muted-foreground">
                   {counts.P0 > 0 && <span className="text-severity-p0 font-medium">{counts.P0} P0</span>}

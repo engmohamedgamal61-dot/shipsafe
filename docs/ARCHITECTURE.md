@@ -94,8 +94,10 @@ review-engine/
   providers/
     provider.ts             AIProvider port + ProviderError (retryable/terminal)
     mock-provider.ts         deterministic heuristic-based AIProvider (used today)
-    judge-provider.ts        ReleaseJudgePort + MockReleaseJudgeProvider
-    anthropic-provider.ts    real Claude-backed adapter (Phase 2, not yet built)
+    judge-provider.ts        ReleaseJudgePort + MockReleaseJudgeProvider + AnthropicJudgeProvider
+    anthropic-provider.ts    real Claude-backed AIProvider (AI_PROVIDER=anthropic)
+    prompt.ts                shared prompt builders (untrusted-diff delimiters, truncation notices)
+    concurrency-limiter.ts   caps concurrent Anthropic calls (AI_MAX_CONCURRENT_REVIEWERS)
   orchestrator.ts           runs the 5 specialist agents, then the judge; fail-closed
 ```
 
@@ -148,10 +150,13 @@ TABLE ... DROP`, missing test files for changed source files, etc.) — this
 is a genuine rule engine, not a hardcoded fixture, so the demo review is
 computed from whatever `ReviewContext` it's given.
 
-Phase 2 swaps in `AnthropicProvider`, which sends the same
-`AgentReviewInput` to the Claude API and validates the structured response
-against the same output schema. No agent, orchestrator, or UI code changes
-when that swap happens — this is the reason the provider boundary exists.
+Phase 3 adds `AnthropicProvider`, which sends the same `AgentReviewInput`
+to the Claude API and validates the structured response against the same
+output schema. No agent, orchestrator, or UI code changed when that swap
+happened — that's the reason the provider boundary exists. The
+composition root (`src/server/container.ts`) selects it over
+`MockAIProvider` when `AI_PROVIDER=anthropic` and `ANTHROPIC_API_KEY` are
+both set; demo mode always uses the mock regardless of this setting.
 
 Every call returns `AgentReviewResult { output, metadata }`, where
 `metadata: ProviderExecutionMetadata` captures `provider`, `model`,
@@ -386,9 +391,9 @@ connected once, anywhere, which is what makes repeated webhook delivery
 safe to just "upsert" against instead of accumulating duplicate rows.
 
 Not yet built (see `docs/MVP-PLAN.md` Phase 2): GitHub PR inline comments
-and a status check that can gate merge, an `AnthropicProvider` replacing
-the heuristic mock review engine, and a background job runner (webhook
-ingestion currently runs synchronously in the Route Handler).
+and a status check that can gate merge, and a background job runner
+(webhook ingestion currently runs synchronously in the Route Handler).
+`AnthropicProvider` — real Claude-backed reviewers — shipped in Phase 3.
 
 ## Auth
 

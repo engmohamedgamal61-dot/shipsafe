@@ -227,6 +227,7 @@ export async function findOrCreatePendingReview(
   headSha: string,
   baseSha: string,
   ruleVersion: string,
+  truncation: { diffTruncated: boolean; changedFilesTruncated: boolean },
 ): Promise<{ id: string; alreadyExisted: boolean }> {
   const supabase = createServiceSupabaseClient();
 
@@ -241,6 +242,8 @@ export async function findOrCreatePendingReview(
     reviewed_head_sha: headSha,
     reviewed_base_sha: baseSha,
     rule_version: ruleVersion,
+    diff_truncated: truncation.diffTruncated,
+    changed_files_truncated: truncation.changedFilesTruncated,
   });
 
   if (!error) return { id, alreadyExisted: false };
@@ -332,6 +335,8 @@ export async function completeReview(
       line_start: finding.lineStart,
       line_end: finding.lineEnd,
       category: finding.category,
+      recommendation: finding.recommendation,
+      confidence: finding.confidence,
     })),
   );
 

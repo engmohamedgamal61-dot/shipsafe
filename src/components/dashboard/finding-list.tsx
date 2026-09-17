@@ -33,12 +33,20 @@ export function FindingList({ findings }: { findings: FindingWithReviewer[] }) {
           </div>
           <h4 className="mt-2 font-semibold">{finding.title}</h4>
           <p className="mt-1 text-sm text-muted-foreground">{finding.description}</p>
-          {finding.filePath && (
-            <p className="mt-2 font-mono text-xs text-muted-foreground">
-              {finding.filePath}
-              {finding.lineStart ? `:${finding.lineStart}` : ""}
-            </p>
-          )}
+          <p className="mt-2 text-sm">
+            <span className="font-medium">Recommendation:</span> {finding.recommendation}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {finding.filePath && (
+              <p className="font-mono text-xs text-muted-foreground">
+                {finding.filePath}
+                {finding.lineStart ? `:${finding.lineStart}` : ""}
+              </p>
+            )}
+            <span className="text-xs text-muted-foreground">
+              {Math.round(finding.confidence * 100)}% confidence
+            </span>
+          </div>
         </li>
       ))}
     </ul>

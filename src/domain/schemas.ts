@@ -57,6 +57,9 @@ export const providerFindingSchema = z
     lineStart: z.number().int().positive().nullable(),
     lineEnd: z.number().int().positive().nullable(),
     category: z.string().min(1),
+    recommendation: z.string().min(1),
+    /** Model/heuristic's own confidence in this finding, 0 (guess) to 1 (certain). */
+    confidence: z.number().min(0).max(1),
   })
   .refine(
     (finding) =>

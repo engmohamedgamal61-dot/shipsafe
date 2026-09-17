@@ -166,6 +166,8 @@ function mapFinding(row: SupabaseFindingRow): Finding {
     lineStart: row.line_start,
     lineEnd: row.line_end,
     category: row.category,
+    recommendation: row.recommendation,
+    confidence: row.confidence,
   };
 }
 
@@ -211,6 +213,8 @@ function mapReviewWithContext(row: SupabaseReviewRow): ReviewWithContext {
     promptVersion: row.prompt_version,
     startedAt: row.started_at,
     completedAt: row.completed_at,
+    diffTruncated: row.diff_truncated,
+    changedFilesTruncated: row.changed_files_truncated,
     reviewerRuns: row.reviewer_runs.map(mapReviewerRun),
   };
 

@@ -69,9 +69,9 @@ insert into public.reviews (id, pull_request_id, status, verdict, summary, revie
 insert into public.reviewer_runs (id, review_id, reviewer, status, summary, completed_at) values
   ('a5000000-0000-0000-0000-000000000001', 'a4000000-0000-0000-0000-000000000001', 'security', 'complete', 'found a hardcoded secret', now());
 
-insert into public.findings (id, reviewer_run_id, severity, title, description, category) values
-  ('a6000000-0000-0000-0000-000000000001', 'a5000000-0000-0000-0000-000000000001', 'P0', 'Hardcoded secret', 'a secret is hardcoded', 'hardcoded-secret'),
-  ('a6000000-0000-0000-0000-000000000002', 'a5000000-0000-0000-0000-000000000001', 'P1', 'Missing test', 'no test for this change', 'missing-test');
+insert into public.findings (id, reviewer_run_id, severity, title, description, category, recommendation, confidence) values
+  ('a6000000-0000-0000-0000-000000000001', 'a5000000-0000-0000-0000-000000000001', 'P0', 'Hardcoded secret', 'a secret is hardcoded', 'hardcoded-secret', 'rotate it', 0.9),
+  ('a6000000-0000-0000-0000-000000000002', 'a5000000-0000-0000-0000-000000000001', 'P1', 'Missing test', 'no test for this change', 'missing-test', 'add a test', 0.7);
 
 insert into public.github_installations (id, installation_id, account_login, account_type, workspace_id) values
   ('a7000000-0000-0000-0000-000000000001', '999999', 'acme-corp', 'Organization', 'a1000000-0000-0000-0000-000000000001');

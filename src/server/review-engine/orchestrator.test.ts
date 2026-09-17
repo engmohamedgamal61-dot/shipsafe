@@ -47,6 +47,8 @@ class FakeAIProvider implements AIProvider {
               lineStart: null,
               lineEnd: null,
               category: "test-fixture",
+              recommendation: "planted by the test fixture",
+              confidence: 1,
             },
           ]
         : [];
@@ -110,6 +112,8 @@ const context: ReviewContext = {
   targetBranch: "main",
   changedFiles: [],
   diffText: "",
+  diffTruncated: false,
+  changedFilesTruncated: false,
 };
 
 describe("ReviewOrchestrator — fail-closed orchestration", () => {

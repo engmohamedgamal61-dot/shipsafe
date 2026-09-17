@@ -18,6 +18,8 @@ function finding(severity: Severity, overrides: Partial<Finding> = {}): Finding 
     lineStart: null,
     lineEnd: null,
     category: "test",
+    recommendation: "test recommendation",
+    confidence: 1,
     ...overrides,
   };
 }

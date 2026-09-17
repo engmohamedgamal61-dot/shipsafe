@@ -1,8 +1,7 @@
 import { logger } from "@/lib/logger";
 import { ReviewOrchestrator } from "@/server/review-engine/orchestrator";
-import { MockAIProvider } from "@/server/review-engine/providers/mock-provider";
-import { MockReleaseJudgeProvider } from "@/server/review-engine/providers/judge-provider";
 import { REVIEW_RULE_VERSION } from "@/server/review-engine/version";
+import { getAIProvider, getReleaseJudgePort } from "@/server/container";
 import { fetchPullRequestDiff, fetchPullRequestFiles, getInstallationToken } from "./client";
 import { hardenPullRequestInput } from "./pr-hardening";
 import type {
@@ -158,6 +157,7 @@ export async function handlePullRequestEvent(body: GithubPullRequestWebhookBody)
     body.pull_request.head.sha,
     body.pull_request.base.sha,
     REVIEW_RULE_VERSION,
+    { diffTruncated, changedFilesTruncated },
   );
 
   if (alreadyExisted) {
@@ -169,13 +169,15 @@ export async function handlePullRequestEvent(body: GithubPullRequestWebhookBody)
     return;
   }
 
-  const orchestrator = new ReviewOrchestrator(new MockAIProvider(), new MockReleaseJudgeProvider());
+  const orchestrator = new ReviewOrchestrator(getAIProvider(), getReleaseJudgePort());
   const result = await orchestrator.run({
     pullRequestTitle: body.pull_request.title,
     sourceBranch: body.pull_request.head.ref,
     targetBranch: body.pull_request.base.ref,
     changedFiles,
     diffText,
+    diffTruncated,
+    changedFilesTruncated,
   });
 
   await completeReview(reviewId, result);

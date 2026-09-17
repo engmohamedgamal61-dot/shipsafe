@@ -56,6 +56,8 @@ describe("findingRowSchema", () => {
     line_start: 10,
     line_end: 12,
     category: "hardcoded-secret",
+    recommendation: "rotate the credential",
+    confidence: 0.9,
   };
 
   it("accepts a well-formed finding", () => {
@@ -92,6 +94,8 @@ describe("reviewRowSchema", () => {
     prompt_version: null,
     started_at: "2026-01-01T00:00:00.000Z",
     completed_at: "2026-01-01T00:01:00.000Z",
+    diff_truncated: false,
+    changed_files_truncated: false,
     pull_requests: {
       id: "pr-1",
       repository_id: "repo-1",

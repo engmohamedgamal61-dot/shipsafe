@@ -9,6 +9,7 @@ import { StatusStrip } from "@/components/dashboard/status-strip";
 import { ReviewerStatusList } from "@/components/dashboard/reviewer-status-list";
 import { ChangedFilesList } from "@/components/dashboard/changed-files-list";
 import { FindingList, type FindingWithReviewer } from "@/components/dashboard/finding-list";
+import { TruncationNotice } from "@/components/dashboard/truncation-notice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function ReviewDetailPage({
@@ -57,6 +58,11 @@ export default async function ReviewDetailPage({
           <span className="font-mono">{review.pullRequest.targetBranch}</span>
         </p>
       </div>
+
+      <TruncationNotice
+        diffTruncated={review.diffTruncated}
+        changedFilesTruncated={review.changedFilesTruncated}
+      />
 
       {review.verdict && review.summary && (
         <VerdictBanner verdict={review.verdict} summary={review.summary} />

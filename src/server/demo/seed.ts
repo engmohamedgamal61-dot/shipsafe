@@ -76,6 +76,8 @@ async function buildDemoReview(): Promise<ReviewWithContext> {
     targetBranch: pullRequest.targetBranch,
     changedFiles: pullRequest.changedFiles,
     diffText: pullRequest.diffText,
+    diffTruncated: false,
+    changedFilesTruncated: false,
   });
 
   const reviewerRuns = attachReviewIds(DEMO_REVIEW_ID, result.reviewerRuns);
@@ -91,6 +93,8 @@ async function buildDemoReview(): Promise<ReviewWithContext> {
     reviewedBaseSha: pullRequest.baseSha,
     ruleVersion: REVIEW_RULE_VERSION,
     promptVersion: null,
+    diffTruncated: false,
+    changedFilesTruncated: false,
     startedAt: result.startedAt,
     completedAt: result.completedAt,
     reviewerRuns,

@@ -12,6 +12,8 @@ function context(diffText: string): ReviewContext {
     targetBranch: "main",
     changedFiles: [],
     diffText,
+    diffTruncated: false,
+    changedFilesTruncated: false,
   };
 }
 

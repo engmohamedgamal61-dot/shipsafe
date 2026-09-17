@@ -65,6 +65,8 @@ export const findingRowSchema = z.object({
   line_start: z.number().nullable(),
   line_end: z.number().nullable(),
   category: z.string(),
+  recommendation: z.string(),
+  confidence: z.number(),
 });
 export type SupabaseFindingRow = z.infer<typeof findingRowSchema>;
 
@@ -101,6 +103,8 @@ export const reviewRowSchema = z.object({
   prompt_version: z.string().nullable(),
   started_at: z.string().nullable(),
   completed_at: z.string().nullable(),
+  diff_truncated: z.boolean(),
+  changed_files_truncated: z.boolean(),
   pull_requests: pullRequestRowSchema,
   reviewer_runs: z.array(reviewerRunRowSchema),
 });
