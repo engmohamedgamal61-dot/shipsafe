@@ -82,9 +82,20 @@ export type GithubInstallationRepositoriesWebhookBody = z.infer<
   typeof githubInstallationRepositoriesWebhookBodySchema
 >;
 
+/**
+ * The `pull_request` webhook's `installation` field is a minimal
+ * reference (`{id, node_id}`) — unlike `installation`/
+ * `installation_repositories` events, GitHub does not include `account`
+ * here. `handlePullRequestEvent` only ever reads `.id`, so that's all
+ * this requires.
+ */
+export const githubPullRequestWebhookInstallationSchema = z.object({
+  id: z.number(),
+});
+
 export const githubPullRequestWebhookBodySchema = z.object({
   action: z.string(),
-  installation: githubInstallationPayloadSchema.optional(),
+  installation: githubPullRequestWebhookInstallationSchema.optional(),
   repository: githubRepositoryPayloadSchema,
   pull_request: githubPullRequestPayloadSchema,
 });

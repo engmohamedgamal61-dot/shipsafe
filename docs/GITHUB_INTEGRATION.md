@@ -22,10 +22,15 @@ create an app with:
   and keep it — it becomes `GITHUB_WEBHOOK_SECRET` below.
 - **Repository permissions**:
   - Metadata — Read-only (mandatory)
-  - Pull requests — Read-only (ShipSafe reads PR metadata, diffs, and
-    changed files; it does not comment or push yet — see
-    `docs/MVP-PLAN.md` Phase 2 for planned inline comments / status
-    checks)
+  - Pull requests — Read-only (PR metadata and changed-file stats; it
+    does not comment or push yet — see `docs/MVP-PLAN.md` Phase 2 for
+    planned inline comments / status checks)
+  - Contents — Read-only (required to fetch a PR's unified diff via
+    `Accept: application/vnd.github.v3.diff` on the pulls endpoint —
+    `src/server/github/client.ts` `fetchPullRequestDiff`; GitHub 403s
+    that request with "Resource not accessible by integration" without
+    it, even though Pull requests read alone is enough for every other
+    PR endpoint this integration calls)
 - **Subscribe to events**: `Installation`, `Installation repositories`,
   `Pull request`.
 - **Where can this GitHub App be installed?**: either option works;

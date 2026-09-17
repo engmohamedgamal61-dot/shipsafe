@@ -14,7 +14,14 @@ import { verifyInstallState } from "@/server/github/install-state";
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const redirectTo = (path: string) => NextResponse.redirect(new URL(path, url.origin));
+  // `request.url`'s own origin reflects the origin server's bind
+  // address, not the public one — behind any reverse proxy (nginx,
+  // Cloudflare Tunnel, most PaaS) it's wrong. The `Host` header (and
+  // `X-Forwarded-Proto` for scheme, since the proxy-to-origin hop is
+  // typically plain HTTP even when the public request was HTTPS) carry
+  // the real external origin instead.
+  const externalOrigin = `${request.headers.get("x-forwarded-proto") ?? url.protocol.slice(0, -1)}://${request.headers.get("host") ?? url.host}`;
+  const redirectTo = (path: string) => NextResponse.redirect(new URL(path, externalOrigin));
 
   if (!isGitHubConfigured) {
     return redirectTo("/repositories?github_error=not_configured");
