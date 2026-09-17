@@ -91,7 +91,11 @@ export interface Database {
           github_installation_id?: string | null;
           name: string;
           full_name: string;
-          default_branch: string;
+          // Column has `default 'main'` — genuinely optional on insert,
+          // not just here for convenience (see upsertRepository in
+          // src/server/github/writes.ts, which omits it entirely when
+          // the source payload doesn't carry a default_branch).
+          default_branch?: string;
           connected_at?: string;
         };
         Update: Partial<{

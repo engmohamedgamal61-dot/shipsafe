@@ -25,10 +25,22 @@ export const githubAccountSchema = z.object({
 });
 export type GithubAccount = z.infer<typeof githubAccountSchema>;
 
-export const githubRepositoryPayloadSchema = z.object({
+/**
+ * The abbreviated repo shape GitHub sends in `installation` and
+ * `installation_repositories` webhooks' `repositories`/
+ * `repositories_added`/`repositories_removed` arrays — just enough to
+ * identify the repo. Unlike a `pull_request` webhook's `repository` (or
+ * the `GET /installation/repositories` REST response), these do NOT
+ * include `default_branch` or `owner`.
+ */
+export const githubRepositoryRefSchema = z.object({
   id: z.number(),
   name: z.string(),
   full_name: z.string(),
+});
+export type GithubRepositoryRef = z.infer<typeof githubRepositoryRefSchema>;
+
+export const githubRepositoryPayloadSchema = githubRepositoryRefSchema.extend({
   default_branch: z.string(),
   owner: githubAccountSchema,
 });
@@ -68,15 +80,15 @@ export type GithubPullRequestFile = z.infer<typeof githubPullRequestFileSchema>;
 export const githubInstallationWebhookBodySchema = z.object({
   action: z.string(),
   installation: githubInstallationPayloadSchema,
-  repositories: z.array(githubRepositoryPayloadSchema).optional(),
+  repositories: z.array(githubRepositoryRefSchema).optional(),
 });
 export type GithubInstallationWebhookBody = z.infer<typeof githubInstallationWebhookBodySchema>;
 
 export const githubInstallationRepositoriesWebhookBodySchema = z.object({
   action: z.enum(["added", "removed"]),
   installation: githubInstallationPayloadSchema,
-  repositories_added: z.array(githubRepositoryPayloadSchema).optional(),
-  repositories_removed: z.array(githubRepositoryPayloadSchema).optional(),
+  repositories_added: z.array(githubRepositoryRefSchema).optional(),
+  repositories_removed: z.array(githubRepositoryRefSchema).optional(),
 });
 export type GithubInstallationRepositoriesWebhookBody = z.infer<
   typeof githubInstallationRepositoriesWebhookBodySchema

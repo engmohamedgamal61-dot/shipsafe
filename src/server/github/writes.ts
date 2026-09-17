@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { attachReviewIds, type OrchestratorResult } from "@/server/review-engine/orchestrator";
 import type { ChangedFile } from "@/domain/types";
-import type { GithubAccount, GithubRepositoryPayload } from "./types";
+import type { GithubAccount, GithubRepositoryRef } from "./types";
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -87,12 +87,17 @@ export async function setInstallationSuspended(
 }
 
 export async function upsertRepository(
-  repo: GithubRepositoryPayload,
+  repo: GithubRepositoryRef & { default_branch?: string },
   workspaceId: string,
   githubInstallationRowId: string,
 ): Promise<{ id: string }> {
   const supabase = createServiceSupabaseClient();
 
+  // `installation`/`installation_repositories` webhooks only send the
+  // abbreviated repo ref (no `default_branch`) — omit the column rather
+  // than write a wrong value; the table's `default 'main'` covers a
+  // fresh insert, and an existing row's real value is left untouched on
+  // conflict.
   const { data, error } = await supabase
     .from("repositories")
     .upsert(
@@ -103,7 +108,7 @@ export async function upsertRepository(
         github_installation_id: githubInstallationRowId,
         name: repo.name,
         full_name: repo.full_name,
-        default_branch: repo.default_branch,
+        ...(repo.default_branch ? { default_branch: repo.default_branch } : {}),
       },
       { onConflict: "provider,external_repository_id" },
     )
