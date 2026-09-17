@@ -45,7 +45,7 @@ export function ReviewerStatusList({ runs }: { runs: ReviewerRun[] }) {
                   {counts.P0 > 0 && <span className="text-severity-p0 font-medium">{counts.P0} P0</span>}
                   {counts.P1 > 0 && <span className="text-severity-p1 font-medium">{counts.P1} P1</span>}
                   {counts.P2 > 0 && <span>{counts.P2} P2</span>}
-                  {counts.NIT > 0 && <span>{counts.NIT} Nit</span>}
+                  {counts.NIT > 0 && <span>{counts.NIT} Nit{counts.NIT === 1 ? "" : "s"}</span>}
                 </div>
               )}
             </div>
