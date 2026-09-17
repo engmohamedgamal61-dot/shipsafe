@@ -73,6 +73,9 @@ insert into public.findings (id, reviewer_run_id, severity, title, description, 
   ('a6000000-0000-0000-0000-000000000001', 'a5000000-0000-0000-0000-000000000001', 'P0', 'Hardcoded secret', 'a secret is hardcoded', 'hardcoded-secret'),
   ('a6000000-0000-0000-0000-000000000002', 'a5000000-0000-0000-0000-000000000001', 'P1', 'Missing test', 'no test for this change', 'missing-test');
 
+insert into public.github_installations (id, installation_id, account_login, account_type, workspace_id) values
+  ('a7000000-0000-0000-0000-000000000001', '999999', 'acme-corp', 'Organization', 'a1000000-0000-0000-0000-000000000001');
+
 do $$ begin raise notice 'PASS: fixtures created via service_role (trusted backend can write results)'; end $$;
 
 -- ===========================================================================
@@ -184,7 +187,35 @@ begin
   if (select count(*) from public.findings where reviewer_run_id = 'a5000000-0000-0000-0000-000000000001') <> 0 then
     raise exception 'FAIL: non-member could see findings';
   end if;
+  if (select count(*) from public.github_installations where id = 'a7000000-0000-0000-0000-000000000001') <> 0 then
+    raise exception 'FAIL: non-member could see the github installation';
+  end if;
   raise notice 'PASS: cross-user access is denied for a user outside the workspace';
+end $$;
+
+-- ===========================================================================
+-- github_installations: workspace members can read; nobody can write it
+-- directly (it's ingested by the setup-URL callback / webhooks, both of
+-- which use the service role).
+-- ===========================================================================
+
+set local request.jwt.claim.sub = '11111111-1111-1111-1111-111111111111';
+
+do $$
+declare
+  affected int;
+begin
+  if (select count(*) from public.github_installations where id = 'a7000000-0000-0000-0000-000000000001') <> 1 then
+    raise exception 'FAIL: workspace owner could not read the github installation';
+  end if;
+
+  update public.github_installations set account_login = 'hijacked' where id = 'a7000000-0000-0000-0000-000000000001';
+  get diagnostics affected = row_count;
+  if affected <> 0 then
+    raise exception 'FAIL: owner modified a github_installations row directly (% row(s) affected)', affected;
+  end if;
+
+  raise notice 'PASS: workspace member can read the github installation but cannot modify it directly';
 end $$;
 
 -- ===========================================================================

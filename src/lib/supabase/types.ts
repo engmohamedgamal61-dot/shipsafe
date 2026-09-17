@@ -24,6 +24,7 @@ export interface Database {
           email: string;
           created_at: string;
         }>;
+        Relationships: [];
       };
       workspaces: {
         Row: {
@@ -47,6 +48,7 @@ export interface Database {
           created_by: string;
           created_at: string;
         }>;
+        Relationships: [];
       };
       workspace_memberships: {
         Row: {
@@ -67,6 +69,7 @@ export interface Database {
           role: string;
           created_at: string;
         }>;
+        Relationships: [];
       };
       repositories: {
         Row: {
@@ -74,6 +77,7 @@ export interface Database {
           workspace_id: string;
           provider: string;
           external_repository_id: string | null;
+          github_installation_id: string | null;
           name: string;
           full_name: string;
           default_branch: string;
@@ -84,6 +88,7 @@ export interface Database {
           workspace_id: string;
           provider: string;
           external_repository_id?: string | null;
+          github_installation_id?: string | null;
           name: string;
           full_name: string;
           default_branch: string;
@@ -94,11 +99,46 @@ export interface Database {
           workspace_id: string;
           provider: string;
           external_repository_id: string | null;
+          github_installation_id: string | null;
           name: string;
           full_name: string;
           default_branch: string;
           connected_at: string;
         }>;
+        Relationships: [];
+      };
+      github_installations: {
+        Row: {
+          id: string;
+          installation_id: string;
+          account_login: string;
+          account_type: string;
+          workspace_id: string | null;
+          suspended: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          installation_id: string;
+          account_login: string;
+          account_type: string;
+          workspace_id?: string | null;
+          suspended?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<{
+          id: string;
+          installation_id: string;
+          account_login: string;
+          account_type: string;
+          workspace_id: string | null;
+          suspended: boolean;
+          created_at: string;
+          updated_at: string;
+        }>;
+        Relationships: [];
       };
       pull_requests: {
         Row: {
@@ -146,6 +186,7 @@ export interface Database {
           base_sha: string;
           opened_at: string;
         }>;
+        Relationships: [];
       };
       reviews: {
         Row: {
@@ -190,6 +231,7 @@ export interface Database {
           started_at: string | null;
           completed_at: string | null;
         }>;
+        Relationships: [];
       };
       reviewer_runs: {
         Row: {
@@ -243,6 +285,7 @@ export interface Database {
           started_at: string | null;
           completed_at: string | null;
         }>;
+        Relationships: [];
       };
       findings: {
         Row: {
@@ -278,7 +321,10 @@ export interface Database {
           line_end: number | null;
           category: string;
         }>;
+        Relationships: [];
       };
     };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
 }

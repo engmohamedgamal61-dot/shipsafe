@@ -10,7 +10,7 @@ export const DEMO_USER_EMAIL = "demo@shipsafe.dev";
 export const DEMO_WORKSPACE_ID = "00000000-0000-0000-0000-000000000002";
 
 function sign(value: string): string {
-  return createHmac("sha256", env.DEMO_SESSION_SECRET).update(value).digest("hex");
+  return createHmac("sha256", env.APP_SECRET).update(value).digest("hex");
 }
 
 /** Value stored in the demo session cookie: `<userId>.<hmac>`. */

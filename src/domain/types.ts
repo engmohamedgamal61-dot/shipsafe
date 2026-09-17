@@ -56,6 +56,13 @@ export interface ChangedFile {
   status: ChangedFileStatus;
   additions: number;
   deletions: number;
+  /**
+   * True when the provider didn't include a textual patch for this file
+   * (a real binary file, or a text file whose diff was too large to
+   * inline). Optional/absent for demo fixtures, which have no such
+   * concept. See `src/server/github/pr-hardening.ts`.
+   */
+  binary?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -87,10 +94,29 @@ export interface Repository {
   provider: RepositoryProvider;
   /** Stable identity from the provider (e.g. GitHub repo id). Null for demo repositories. */
   externalId: string | null;
+  /** Which GitHub App installation owns this repo. Null for demo repositories. */
+  githubInstallationId: string | null;
   name: string;
   fullName: string;
   defaultBranch: string;
   connectedAt: string;
+}
+
+/**
+ * A GitHub account (user or org) that has installed the self-hoster's own
+ * GitHub App, linked to the ShipSafe workspace that installed it. See
+ * docs/GITHUB_INTEGRATION.md.
+ */
+export interface GithubInstallation {
+  id: string;
+  /** GitHub's installation id (opaque external identifier, compared as a string). */
+  installationId: string;
+  accountLogin: string;
+  accountType: "User" | "Organization";
+  /** Null until the setup-URL callback (or a race-winning webhook) links it. */
+  workspaceId: string | null;
+  suspended: boolean;
+  createdAt: string;
 }
 
 export interface PullRequest {

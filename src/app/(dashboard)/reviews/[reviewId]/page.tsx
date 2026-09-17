@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { ExternalLink } from "lucide-react";
 import { requireSession } from "@/server/auth/require-session";
 import { getReviewRepository } from "@/server/container";
 import { countBySeverity } from "@/domain/types";
@@ -25,13 +26,30 @@ export default async function ReviewDetailPage({
     run.findings.map((finding) => ({ ...finding, reviewer: run.reviewer })),
   );
   const counts = countBySeverity(findings);
+  const githubUrl =
+    review.repository.provider === "github"
+      ? `https://github.com/${review.repository.fullName}/pull/${review.pullRequest.number}`
+      : null;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <p className="text-sm text-muted-foreground">
-          {review.repository.fullName} · #{review.pullRequest.number}
-        </p>
+        <div className="flex items-center gap-2">
+          <p className="text-sm text-muted-foreground">
+            {review.repository.fullName} · #{review.pullRequest.number}
+          </p>
+          {githubUrl && (
+            <a
+              href={githubUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1 text-sm text-brand hover:underline"
+            >
+              View on GitHub
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+            </a>
+          )}
+        </div>
         <h1 className="text-2xl font-semibold tracking-tight">{review.pullRequest.title}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {review.pullRequest.authorLogin} wants to merge{" "}

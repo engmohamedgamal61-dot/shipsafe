@@ -303,9 +303,10 @@ code:
   `BYPASSRLS`, so it isn't blocked by (and doesn't need) any policy — the
   *code path* using it is what has to enforce correctness (e.g. "this
   review belongs to a PR the caller's workspace owns") before writing.
-  Phase 1 has no writer yet (`SupabaseReviewRepository` is read-only — see
-  [MVP-PLAN.md](./MVP-PLAN.md)); this is the client Phase 2's GitHub
-  ingestion/orchestration service will use.
+  `SupabaseReviewRepository` (`src/server/repositories/supabase-adapter.ts`)
+  remains read-only; `src/server/github/writes.ts` is the writer, used by
+  the GitHub webhook ingestion path — see
+  [GitHub Integration](#github-integration) below.
 
 See [RLS Integration Tests](#rls-integration-tests) for how this is
 verified against a real Postgres instance, not asserted from application
@@ -330,9 +331,10 @@ A `Review` describes **one exact commit**, immutably:
   doesn't retroactively change what an old review is presented as having
   found.
 
-Phase 2's GitHub status check / PR comment integration will key strictly
+A future GitHub status check / PR comment integration will key strictly
 off `reviewed_head_sha` — a verdict is only ever shown against, or used to
-gate, the exact commit it was computed for.
+gate, the exact commit it was computed for. (Not yet built — see
+`docs/MVP-PLAN.md` Phase 2.)
 
 ## Tenancy: Workspaces
 
@@ -362,7 +364,17 @@ has exactly one workspace per user (`workspaceIdForUser()` in
 mapping), so the data model is ahead of the UI here by design: it's the
 piece that's expensive to retrofit later, unlike a switcher.
 
-## GitHub Integration (Phase 2, architected for now)
+## GitHub Integration
+
+Real GitHub App installation, webhook ingestion, and PR diff fetching are
+implemented in `src/server/github/` — see
+[GITHUB_INTEGRATION.md](./GITHUB_INTEGRATION.md) for the self-hosting
+setup guide (registering a GitHub App, required env vars, local dev via a
+tunnel) and how the install/webhook flow works end to end. It's gated
+behind `isGitHubConfigured` (`src/lib/env.ts`): every self-hoster brings
+their own GitHub App, so a fresh checkout with no GitHub env vars set
+still runs fine — the "Connect GitHub" button is disabled with an
+explanatory tooltip instead of erroring.
 
 `Repository.externalId` (`external_repository_id` in Postgres) and
 `PullRequest.externalId` (`external_pull_request_id`) hold the provider's
@@ -373,10 +385,10 @@ still allowed, but a real `(github, <repo id>)` pair can only ever be
 connected once, anywhere, which is what makes repeated webhook delivery
 safe to just "upsert" against instead of accumulating duplicate rows.
 
-The connection UI (`/repositories`) renders a "Connect GitHub" call to
-action that is intentionally disabled in Phase 1 with an explanatory
-tooltip, rather than omitted, so the information architecture for Phase 2
-is already correct.
+Not yet built (see `docs/MVP-PLAN.md` Phase 2): GitHub PR inline comments
+and a status check that can gate merge, an `AnthropicProvider` replacing
+the heuristic mock review engine, and a background job runner (webhook
+ingestion currently runs synchronously in the Route Handler).
 
 ## Auth
 
@@ -567,12 +579,16 @@ partially:
 - **Session refresh** (`src/proxy.ts`) — see [Auth](#auth).
 - **Adapter-boundary validation** — `SupabaseReviewRepository`'s mappers
   are explicit and typed against a hand-written `Database` type, but
-  don't run malformed rows through a Zod schema before trusting them.
-  Low risk today (no write path populates these tables yet), worth
-  hardening before Phase 2 ingestion writes real GitHub data.
+  don't run malformed rows through a Zod schema before trusting them. Now
+  that `src/server/github/writes.ts` populates these tables from real
+  GitHub data, this is a live gap, not a hypothetical one — still
+  deferred, but should be picked up soon.
 - **Review input hardening** — no max diff size / changed-file count /
-  binary-patch handling yet in the review engine. Fine against a fixed
-  demo fixture; required before feeding it arbitrary real PRs.
+  binary-patch handling yet in the review engine. Now that the GitHub
+  webhook path (`src/server/github/ingest.ts`) feeds it arbitrary real
+  PRs, an oversized diff or huge file count from a real repository will
+  hit this unhardened path — still deferred, but this is the next thing
+  that should land, not indefinitely.
 - **Broader test coverage** — diff parser edge cases (multiple hunks,
   deleted files, quoted paths, binary patches), demo-cookie rejection,
   and a configured-auth integration test are not yet written.

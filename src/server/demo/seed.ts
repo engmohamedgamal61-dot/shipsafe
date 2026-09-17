@@ -46,6 +46,7 @@ async function buildDemoReview(): Promise<ReviewWithContext> {
     workspaceId: DEMO_WORKSPACE_ID,
     provider: "demo",
     externalId: null,
+    githubInstallationId: null,
     name: "payments-service",
     fullName: "acme/payments-service",
     defaultBranch: "main",

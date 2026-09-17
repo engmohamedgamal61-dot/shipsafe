@@ -222,10 +222,17 @@ for what was deliberately **not** done in this pass (session refresh,
 full adapter-boundary Zod validation, review input hardening, broader
 test coverage) and why each is safe to defer.
 
-### Phase 2 (not built now)
-- Real GitHub App: webhook ingestion, installation flow, fetching real
-  diffs via the GitHub API — writes through the service-role path
-  established in Phase 1.1
+### Phase 2
+
+1. **Real GitHub App** — webhook ingestion, installation flow, fetching
+   real diffs via the GitHub API — writes through the service-role path
+   established in Phase 1.1. **Built.** See
+   [GITHUB_INTEGRATION.md](./GITHUB_INTEGRATION.md) and
+   [ARCHITECTURE.md § GitHub Integration](./ARCHITECTURE.md#github-integration).
+   Still uses the same heuristic `MockAIProvider` / `MockReleaseJudgeProvider`
+   as Phase 1 — see the next item.
+
+### Phase 2, remaining (not built yet)
 - `AnthropicProvider` / `AnthropicJudgeProvider` — real LLM-backed agents
   implementing the same `AIProvider` / `ReleaseJudgePort` interfaces,
   replacing/augmenting the heuristic mock implementations
