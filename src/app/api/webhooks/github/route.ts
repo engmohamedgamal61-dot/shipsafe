@@ -8,6 +8,7 @@ import {
   handleInstallationRepositoriesEvent,
   handlePullRequestEvent,
 } from "@/server/github/ingest";
+import { recordWebhookDelivery } from "@/server/github/writes";
 import {
   githubInstallationRepositoriesWebhookBodySchema,
   githubInstallationWebhookBodySchema,
@@ -46,6 +47,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Invalid JSON payload" }, { status: 400 });
   }
 
+  // Idempotency on GitHub's own delivery id: if GitHub retries a delivery
+  // we didn't ack fast enough (or ack at all, on a transient failure), a
+  // second attempt for the exact same delivery short-circuits here rather
+  // than re-running ingestion. This is a *retry* guard, distinct from
+  // `findOrCreatePendingReview`'s (pullRequestId, headSha) dedup, which
+  // guards against duplicate *reviews* however the duplicate delivery
+  // arrived (including a manual re-delivery, which gets a fresh delivery id).
+  const deliveryId = request.headers.get("x-github-delivery");
+  if (deliveryId) {
+    const { isDuplicate } = await recordWebhookDelivery(deliveryId, eventName ?? "unknown");
+    if (isDuplicate) {
+      logger.info("ignoring duplicate github webhook delivery", { deliveryId, eventName });
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+  }
+
   try {
     switch (eventName) {
       case "ping":
@@ -65,8 +82,12 @@ export async function POST(request: Request) {
       case "pull_request": {
         const parsed = githubPullRequestWebhookBodySchema.safeParse(payload);
         if (!parsed.success) return malformedPayload(eventName, parsed.error);
+        // Fast path only: verifies, validates, and durably enqueues a
+        // `reviews` row (status='pending'). Never runs the AI pipeline
+        // inline — see `handlePullRequestEvent`'s own doc comment and
+        // `processPendingReviews` in src/server/github/ingest.ts.
         await handlePullRequestEvent(parsed.data);
-        break;
+        return NextResponse.json({ ok: true, queued: true }, { status: 202 });
       }
       default:
         logger.info("ignoring unhandled github webhook event", { eventName });

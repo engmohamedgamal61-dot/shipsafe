@@ -4,6 +4,7 @@ import { requireSession } from "@/server/auth/require-session";
 import { getReviewRepository } from "@/server/container";
 import { countBySeverity } from "@/domain/types";
 import { VerdictBanner } from "@/components/dashboard/verdict-banner";
+import { VerdictPill } from "@/components/dashboard/verdict-pill";
 import { SeverityCountsRow } from "@/components/dashboard/severity-counts-row";
 import { StatusStrip } from "@/components/dashboard/status-strip";
 import { ReviewerStatusList } from "@/components/dashboard/reviewer-status-list";
@@ -69,8 +70,17 @@ export default async function ReviewDetailPage({
         changedFilesTruncated={review.changedFilesTruncated}
       />
 
-      {review.verdict && review.summary && (
+      {review.verdict && review.summary ? (
         <VerdictBanner verdict={review.verdict} summary={review.summary} />
+      ) : (
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-5">
+          <VerdictPill verdict={null} status={review.status} />
+          <p className="text-sm text-muted-foreground">
+            {review.status === "running"
+              ? "ShipSafe is reviewing this pull request now — findings will appear here as they're ready."
+              : "This pull request is queued for review and will start shortly."}
+          </p>
+        </div>
       )}
 
       <StatusStrip reviewerRuns={review.reviewerRuns} />

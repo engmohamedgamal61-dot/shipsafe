@@ -50,7 +50,7 @@ export default async function DashboardPage() {
                         )}
                       </p>
                     </div>
-                    <VerdictPill verdict={review.verdict} />
+                    <VerdictPill verdict={review.verdict} status={review.status} />
                   </CardHeader>
                   <CardContent className="flex items-center justify-between gap-4">
                     <SeverityCountsRow counts={counts} />

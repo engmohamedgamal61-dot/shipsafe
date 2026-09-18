@@ -356,3 +356,152 @@ export async function completeReview(
     }
   }
 }
+
+/**
+ * Marks a review failed outside the normal `completeReview` path — used
+ * when the worker itself throws (e.g. it can't even load the PR row, or
+ * a write fails) rather than the orchestrator producing a real
+ * `OrchestratorResult`. Without this, a crash mid-processing would leave
+ * the row stuck at `running` forever instead of failing closed.
+ */
+export async function failReview(reviewId: string, reason: string): Promise<void> {
+  const supabase = createServiceSupabaseClient();
+  const now = new Date().toISOString();
+
+  const { error } = await supabase
+    .from("reviews")
+    .update({
+      status: "failed",
+      verdict: "DO_NOT_APPROVE",
+      summary: reason,
+      failure_reason: reason,
+      completed_at: now,
+    })
+    .eq("id", reviewId);
+
+  if (error) {
+    throw new Error(`Failed to mark review ${reviewId} failed: ${error.message}`);
+  }
+}
+
+/**
+ * Idempotency guard on GitHub's own `X-GitHub-Delivery` header. Returns
+ * `isDuplicate: true` without throwing when this exact delivery has
+ * already been recorded (a `23505` unique violation on `delivery_id`) —
+ * GitHub retries a delivery it didn't get a fast-enough 2xx for, and this
+ * is what lets the Route Handler tell "GitHub retried the same delivery"
+ * apart from "a genuinely new event" before doing any real work.
+ */
+export async function recordWebhookDelivery(
+  deliveryId: string,
+  eventName: string,
+): Promise<{ isDuplicate: boolean }> {
+  const supabase = createServiceSupabaseClient();
+  const { error } = await supabase
+    .from("github_webhook_deliveries")
+    .insert({ delivery_id: deliveryId, event: eventName });
+
+  if (!error) return { isDuplicate: false };
+  if (error.code === UNIQUE_VIOLATION) return { isDuplicate: true };
+
+  throw new Error(`Failed to record webhook delivery ${deliveryId}: ${error.message}`);
+}
+
+export interface QueuedPullRequest {
+  title: string;
+  sourceBranch: string;
+  targetBranch: string;
+  changedFiles: ChangedFile[];
+  diffText: string;
+}
+
+/** The subset of a `pull_requests` row a queued review needs to reconstruct its `ReviewContext`. */
+export async function getPullRequestById(id: string): Promise<QueuedPullRequest | null> {
+  const supabase = createServiceSupabaseClient();
+  const { data, error } = await supabase
+    .from("pull_requests")
+    .select("title, source_branch, target_branch, changed_files, diff_text")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  return {
+    title: data.title,
+    sourceBranch: data.source_branch,
+    targetBranch: data.target_branch,
+    changedFiles: data.changed_files as ChangedFile[],
+    diffText: data.diff_text,
+  };
+}
+
+export interface ClaimedReview {
+  id: string;
+  pullRequestId: string;
+  diffTruncated: boolean;
+  changedFilesTruncated: boolean;
+}
+
+/**
+ * A review is stuck genuinely mid-processing for at most a few minutes in
+ * the worst realistic case (AI_REQUEST_TIMEOUT_MS default 30s × 2
+ * attempts × a handful of reviewers, bounded further by
+ * AI_MAX_CONCURRENT_REVIEWERS). 10 minutes is a generous margin before a
+ * `running` row is assumed to belong to a worker that crashed or was
+ * killed mid-job, and is safe to hand to another worker.
+ */
+const STALE_RUNNING_TIMEOUT_MS = 10 * 60 * 1000;
+
+/**
+ * Atomically claims the oldest eligible review for processing — either a
+ * never-claimed `pending` row, or a `running` row whose worker appears to
+ * have died (see `STALE_RUNNING_TIMEOUT_MS`) — and flips it to `running`.
+ *
+ * Race-safe with any number of concurrent callers (multiple worker
+ * processes, or overlapping poll ticks in one process): the eligibility
+ * check (`status = pending`, or `status = running AND started_at <
+ * cutoff`) is re-evaluated by Postgres at UPDATE time against the current
+ * row, not just at the earlier SELECT that found the candidate. If two
+ * callers race for the same row, only the first UPDATE actually matches
+ * that WHERE clause — by the time the second one runs, `status`/
+ * `started_at` already reflect the first caller's write, so the second
+ * caller's filter no longer matches and it claims nothing for that row.
+ */
+export async function claimNextPendingReview(): Promise<ClaimedReview | null> {
+  const supabase = createServiceSupabaseClient();
+  const staleCutoff = new Date(Date.now() - STALE_RUNNING_TIMEOUT_MS).toISOString();
+  const eligibleFilter = `status.eq.pending,and(status.eq.running,started_at.lt.${staleCutoff})`;
+
+  const { data: candidates, error: selectError } = await supabase
+    .from("reviews")
+    .select("id")
+    .or(eligibleFilter)
+    .order("queued_at", { ascending: true })
+    .limit(10);
+
+  if (selectError || !candidates || candidates.length === 0) return null;
+
+  const now = new Date().toISOString();
+
+  for (const candidate of candidates) {
+    const { data: claimed, error: updateError } = await supabase
+      .from("reviews")
+      .update({ status: "running", started_at: now })
+      .eq("id", candidate.id)
+      .or(eligibleFilter)
+      .select("id, pull_request_id, diff_truncated, changed_files_truncated")
+      .maybeSingle();
+
+    if (!updateError && claimed) {
+      return {
+        id: claimed.id,
+        pullRequestId: claimed.pull_request_id,
+        diffTruncated: claimed.diff_truncated,
+        changedFilesTruncated: claimed.changed_files_truncated,
+      };
+    }
+    // Lost the race (or someone else already finished it) — try the next candidate.
+  }
+
+  return null;
+}

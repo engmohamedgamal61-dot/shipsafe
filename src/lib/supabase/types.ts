@@ -144,6 +144,24 @@ export interface Database {
         }>;
         Relationships: [];
       };
+      github_webhook_deliveries: {
+        Row: {
+          delivery_id: string;
+          event: string;
+          received_at: string;
+        };
+        Insert: {
+          delivery_id: string;
+          event: string;
+          received_at?: string;
+        };
+        Update: Partial<{
+          delivery_id: string;
+          event: string;
+          received_at: string;
+        }>;
+        Relationships: [];
+      };
       pull_requests: {
         Row: {
           id: string;
@@ -208,6 +226,7 @@ export interface Database {
           completed_at: string | null;
           diff_truncated: boolean;
           changed_files_truncated: boolean;
+          queued_at: string;
         };
         Insert: {
           id?: string;
@@ -224,6 +243,7 @@ export interface Database {
           completed_at?: string | null;
           diff_truncated?: boolean;
           changed_files_truncated?: boolean;
+          queued_at?: string;
         };
         Update: Partial<{
           id: string;
@@ -240,6 +260,7 @@ export interface Database {
           completed_at: string | null;
           diff_truncated: boolean;
           changed_files_truncated: boolean;
+          queued_at: string;
         }>;
         Relationships: [];
       };

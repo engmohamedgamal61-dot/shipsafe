@@ -11,11 +11,14 @@ import type {
   GithubRepositoryPayload,
 } from "./types";
 import {
+  claimNextPendingReview,
   completeReview,
   deleteInstallation,
+  failReview,
   findOrCreatePendingReview,
   getInstallationRowId,
   getInstallationWorkspaceId,
+  getPullRequestById,
   getRepositoryByExternalId,
   removeRepositoryByExternalId,
   setInstallationSuspended,
@@ -88,10 +91,19 @@ export async function handleInstallationRepositoriesEvent(
 }
 
 /**
- * Handles a `pull_request` webhook: ingests the PR's current state,
- * creates an immutable review row bound to the exact head SHA (skipping
- * if one already exists for this commit — see `findOrCreatePendingReview`),
- * runs the review engine against the real diff, and persists the result.
+ * Handles a `pull_request` webhook: ingests the PR's current state and
+ * creates an immutable, durably-queued review row bound to the exact head
+ * SHA (skipping if one already exists for this commit — see
+ * `findOrCreatePendingReview`), then returns.
+ *
+ * Deliberately does NOT run the review engine itself. `reviews.status =
+ * 'pending'` IS the durable enqueue — it's a committed Postgres row, so it
+ * survives a server restart on its own — and a background worker
+ * (`processPendingReviews` below, driven by `src/instrumentation.ts`)
+ * picks it up independently. Running the AI pipeline inline here is what
+ * used to make this handler take longer than GitHub's ~10s webhook
+ * timeout; this function now only ever does GitHub-API + database calls
+ * fast enough to stay well under it.
  */
 export async function handlePullRequestEvent(body: GithubPullRequestWebhookBody): Promise<void> {
   if (!PULL_REQUEST_ACTIONS_TO_REVIEW.has(body.action)) {
@@ -162,7 +174,7 @@ export async function handlePullRequestEvent(body: GithubPullRequestWebhookBody)
   );
 
   if (alreadyExisted) {
-    logger.info("review already exists for this commit — skipping re-run", {
+    logger.info("review already exists for this commit — skipping re-queue", {
       repository: body.repository.full_name,
       pullRequestNumber: body.pull_request.number,
       headSha: body.pull_request.head.sha,
@@ -170,26 +182,81 @@ export async function handlePullRequestEvent(body: GithubPullRequestWebhookBody)
     return;
   }
 
-  const orchestrator = new ReviewOrchestrator(getAIProvider(), getReleaseJudgePort());
-  const result = await orchestrator.run({
-    pullRequestTitle: body.pull_request.title,
-    sourceBranch: body.pull_request.head.ref,
-    targetBranch: body.pull_request.base.ref,
-    changedFiles,
-    diffText,
-    diffTruncated,
-    changedFilesTruncated,
-  });
-
-  await completeReview(reviewId, result);
-
-  logger.info("review completed for real GitHub PR", {
+  logger.info("queued review for real GitHub PR", {
     repository: body.repository.full_name,
     pullRequestNumber: body.pull_request.number,
     headSha: body.pull_request.head.sha,
-    verdict: result.verdict,
-    status: result.status,
+    reviewId,
   });
+}
+
+/**
+ * Drains the review queue: repeatedly claims the oldest eligible `reviews`
+ * row (see `claimNextPendingReview`) and runs it through the existing
+ * `ReviewOrchestrator` until none are left. Called on a timer by the
+ * background worker (`src/instrumentation.ts`) — never from the webhook
+ * Route Handler, which is exactly the coupling this exists to remove.
+ *
+ * Sequential by design: each claimed review still runs its 5 specialist
+ * reviewers concurrently (the orchestrator's own `Promise.all`, bounded by
+ * `AI_MAX_CONCURRENT_REVIEWERS`), so this doesn't serialize individual AI
+ * calls — it just avoids adding a second, uncoordinated concurrency
+ * dimension on top of that existing cap.
+ */
+export async function processPendingReviews(): Promise<{ processed: number }> {
+  let processed = 0;
+
+  for (;;) {
+    const claimed = await claimNextPendingReview();
+    if (!claimed) break;
+
+    await processClaimedReview(claimed);
+    processed += 1;
+  }
+
+  return { processed };
+}
+
+async function processClaimedReview(claimed: {
+  id: string;
+  pullRequestId: string;
+  diffTruncated: boolean;
+  changedFilesTruncated: boolean;
+}): Promise<void> {
+  try {
+    const pullRequest = await getPullRequestById(claimed.pullRequestId);
+    if (!pullRequest) {
+      throw new Error(`pull_request ${claimed.pullRequestId} not found for queued review ${claimed.id}`);
+    }
+
+    const orchestrator = new ReviewOrchestrator(getAIProvider(), getReleaseJudgePort());
+    const result = await orchestrator.run({
+      pullRequestTitle: pullRequest.title,
+      sourceBranch: pullRequest.sourceBranch,
+      targetBranch: pullRequest.targetBranch,
+      changedFiles: pullRequest.changedFiles,
+      diffText: pullRequest.diffText,
+      diffTruncated: claimed.diffTruncated,
+      changedFilesTruncated: claimed.changedFilesTruncated,
+    });
+
+    await completeReview(claimed.id, result);
+
+    logger.info("processed queued review", {
+      reviewId: claimed.id,
+      status: result.status,
+      verdict: result.verdict,
+    });
+  } catch (error) {
+    // The orchestrator itself never throws (every reviewer/judge failure
+    // is caught internally and turned into a fail-closed result — see
+    // ReviewOrchestrator.run()) — reaching here means something outside
+    // it broke (a missing PR row, a database write failing). Fail closed
+    // here too rather than leaving the row stuck at 'running' forever.
+    const message = error instanceof Error ? error.message : String(error);
+    logger.error("worker failed to process queued review", { reviewId: claimed.id, error: message });
+    await failReview(claimed.id, `Review processing failed: ${message}`);
+  }
 }
 
 async function ensureRepositoryFromWebhook(
