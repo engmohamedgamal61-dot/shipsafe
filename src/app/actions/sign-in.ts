@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { ok, err, type ActionResult } from "@/lib/errors";
 import { createServerSupabaseClient } from "@/lib/supabase/server";
+import { validateSignUpCredentials } from "./sign-up-validation";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -36,16 +37,17 @@ export async function signUpWithPassword(
   _prev: ActionResult<null> | null,
   formData: FormData,
 ): Promise<ActionResult<null>> {
-  const parsed = credentialsSchema.safeParse({
+  const validated = validateSignUpCredentials({
     email: formData.get("email"),
     password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
   });
-  if (!parsed.success) {
-    return err("Enter a valid email and password (min 8 characters).");
+  if (!validated.ok) {
+    return err(validated.error);
   }
 
   const supabase = await createServerSupabaseClient();
-  const { error } = await supabase.auth.signUp(parsed.data);
+  const { error } = await supabase.auth.signUp(validated.data);
   if (error) {
     return err(error.message);
   }

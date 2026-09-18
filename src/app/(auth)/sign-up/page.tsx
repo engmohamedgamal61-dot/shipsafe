@@ -25,7 +25,7 @@ export default function SignUpPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-4">
-            <CredentialsForm action={signUpWithPassword} submitLabel="Sign up" />
+            <CredentialsForm action={signUpWithPassword} submitLabel="Sign up" requireConfirmPassword />
             <p className="text-center text-sm text-muted-foreground">
               Already have an account?{" "}
               <Link href="/sign-in" className="font-medium text-brand">
