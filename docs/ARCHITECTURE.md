@@ -582,18 +582,6 @@ Deliberately deferred out of this pass — flagged here rather than solved
 partially:
 
 - **Session refresh** (`src/proxy.ts`) — see [Auth](#auth).
-- **Adapter-boundary validation** — `SupabaseReviewRepository`'s mappers
-  are explicit and typed against a hand-written `Database` type, but
-  don't run malformed rows through a Zod schema before trusting them. Now
-  that `src/server/github/writes.ts` populates these tables from real
-  GitHub data, this is a live gap, not a hypothetical one — still
-  deferred, but should be picked up soon.
-- **Review input hardening** — no max diff size / changed-file count /
-  binary-patch handling yet in the review engine. Now that the GitHub
-  webhook path (`src/server/github/ingest.ts`) feeds it arbitrary real
-  PRs, an oversized diff or huge file count from a real repository will
-  hit this unhardened path — still deferred, but this is the next thing
-  that should land, not indefinitely.
 - **Broader test coverage** — diff parser edge cases (multiple hunks,
   deleted files, quoted paths, binary patches), demo-cookie rejection,
   and a configured-auth integration test are not yet written.

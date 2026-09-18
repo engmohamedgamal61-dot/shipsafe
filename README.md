@@ -335,10 +335,11 @@ supabase migration up
 you pull new commits that add a migration — this is safe to run anytime
 and a no-op if nothing's pending.
 
-`npm run test:rls` can fail once with `the database system is shutting
-down` the very first time you run it — that's the upstream Supabase
-Postgres image restarting itself partway through its own startup, not a
-migration problem. Just run it again.
+`npm run test:rls` can occasionally fail once with an unrelated Supabase
+internal-schema startup error (e.g. `the database system is shutting
+down`, `permission denied for schema realtime`) — more likely under heavy
+Docker load — rather than anything about your migrations. Just retry the
+command.
 
 #### Anthropic key/provider configuration
 If reviews keep showing generic heuristic-style findings (e.g. summaries

@@ -61,6 +61,10 @@ Do this in order; each section assumes the previous one passed.
 
 - [ ] `/sign-up` creates an account with no email-confirmation step
       required (local Supabase has confirmations disabled by default)
+- [ ] The sign-up form includes a required **Confirm password** field
+- [ ] Submitting mismatched passwords is rejected with an inline error
+      before any account is created
+- [ ] Submitting matching passwords succeeds and reaches `/dashboard`
 - [ ] After signup, you land on a workspace that's yours, not shared
       demo data
 - [ ] Signing out and back in via `/sign-in` works
