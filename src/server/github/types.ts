@@ -53,6 +53,13 @@ export const githubPullRequestPayloadSchema = z.object({
   user: z.object({ login: z.string() }),
   head: z.object({ sha: z.string(), ref: z.string() }),
   base: z.object({ sha: z.string(), ref: z.string() }),
+  /**
+   * When the PR was actually opened on GitHub — immutable for a given PR
+   * across opened/reopened/synchronize deliveries. This is what
+   * `pull_requests.opened_at` must be populated from; never derive that
+   * column from when ShipSafe happened to ingest the webhook.
+   */
+  created_at: z.string(),
 });
 export type GithubPullRequestPayload = z.infer<typeof githubPullRequestPayloadSchema>;
 

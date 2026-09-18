@@ -27,6 +27,7 @@ describe("githubPullRequestWebhookBodySchema", () => {
       user: { login: "octocat" },
       head: { sha: "abc", ref: "feat/x" },
       base: { sha: "def", ref: "main" },
+      created_at: "2026-09-10T08:15:00Z",
     },
   };
 
@@ -65,6 +66,32 @@ describe("githubPullRequestWebhookBodySchema", () => {
 
   it("rejects a null payload", () => {
     expect(githubPullRequestWebhookBodySchema.safeParse(null).success).toBe(false);
+  });
+
+  it("parses pull_request.created_at through as the real GitHub PR creation time", () => {
+    const result = githubPullRequestWebhookBodySchema.safeParse(validBody);
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.pull_request.created_at).toBe("2026-09-10T08:15:00Z");
+    }
+  });
+
+  it("rejects a pull_request payload missing created_at — it must never silently fall back to ingestion time", () => {
+    const { created_at: _createdAt, ...prWithoutCreatedAt } = validBody.pull_request;
+    void _createdAt;
+    const malformed = { ...validBody, pull_request: prWithoutCreatedAt };
+    expect(githubPullRequestWebhookBodySchema.safeParse(malformed).success).toBe(false);
+  });
+
+  it("preserves the same created_at across opened, reopened, and synchronize deliveries for the same PR", () => {
+    const actions = ["opened", "reopened", "synchronize"] as const;
+    for (const action of actions) {
+      const result = githubPullRequestWebhookBodySchema.safeParse({ ...validBody, action });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.pull_request.created_at).toBe(validBody.pull_request.created_at);
+      }
+    }
   });
 });
 

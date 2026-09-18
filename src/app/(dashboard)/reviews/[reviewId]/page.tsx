@@ -10,6 +10,7 @@ import { ReviewerStatusList } from "@/components/dashboard/reviewer-status-list"
 import { ChangedFilesList } from "@/components/dashboard/changed-files-list";
 import { FindingList, type FindingWithReviewer } from "@/components/dashboard/finding-list";
 import { TruncationNotice } from "@/components/dashboard/truncation-notice";
+import { LocalDateTime } from "@/components/dashboard/local-date-time";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function ReviewDetailPage({
@@ -56,6 +57,10 @@ export default async function ReviewDetailPage({
           {review.pullRequest.authorLogin} wants to merge{" "}
           <span className="font-mono">{review.pullRequest.sourceBranch}</span> into{" "}
           <span className="font-mono">{review.pullRequest.targetBranch}</span>
+        </p>
+        <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+          <LocalDateTime prefix="Opened" iso={review.pullRequest.openedAt} />
+          {review.completedAt && <LocalDateTime prefix="Last reviewed" iso={review.completedAt} />}
         </p>
       </div>
 

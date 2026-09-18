@@ -150,6 +150,7 @@ export async function handlePullRequestEvent(body: GithubPullRequestWebhookBody)
     diffText,
     headSha: body.pull_request.head.sha,
     baseSha: body.pull_request.base.sha,
+    openedAt: body.pull_request.created_at,
   });
 
   const { id: reviewId, alreadyExisted } = await findOrCreatePendingReview(

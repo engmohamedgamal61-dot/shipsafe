@@ -182,6 +182,14 @@ export interface UpsertPullRequestInput {
   diffText: string;
   headSha: string;
   baseSha: string;
+  /**
+   * The real GitHub PR creation time (`pull_request.created_at` from the
+   * webhook) — never a ShipSafe-side "now()". Safe to re-send unchanged on
+   * every opened/reopened/synchronize event for the same PR: GitHub keeps
+   * a PR's `created_at` constant for its lifetime, so upserting it every
+   * time is idempotent rather than a special "first insert only" case.
+   */
+  openedAt: string;
 }
 
 export async function upsertPullRequest(input: UpsertPullRequestInput): Promise<{ id: string }> {
@@ -202,6 +210,7 @@ export async function upsertPullRequest(input: UpsertPullRequestInput): Promise<
         diff_text: input.diffText,
         head_sha: input.headSha,
         base_sha: input.baseSha,
+        opened_at: input.openedAt,
       },
       { onConflict: "repository_id,number" },
     )
