@@ -12,7 +12,19 @@ import { ChangedFilesList } from "@/components/dashboard/changed-files-list";
 import { FindingList, type FindingWithReviewer } from "@/components/dashboard/finding-list";
 import { TruncationNotice } from "@/components/dashboard/truncation-notice";
 import { LocalDateTime } from "@/components/dashboard/local-date-time";
+import { ReviewStageProgress } from "@/components/dashboard/review-stage-progress";
+import { AutoRefresh } from "@/components/dashboard/auto-refresh";
+import { isReviewInProgress } from "@/lib/review-status";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
+/**
+ * Shown instead of `review.summary`/`failureReason` when a review fails —
+ * those can contain interpolated provider error text (see
+ * ReviewOrchestrator.run()'s judge-failure path), which never belongs in
+ * front of a tester. The real error is still logged server-side.
+ */
+const SAFE_FAILURE_SUMMARY =
+  "This review could not be completed. ShipSafe's fail-closed policy blocks approval whenever a reviewer or the Release Judge doesn't finish successfully — re-run the review once the underlying issue is resolved.";
 
 export default async function ReviewDetailPage({
   params,
@@ -36,6 +48,7 @@ export default async function ReviewDetailPage({
 
   return (
     <div className="flex flex-col gap-6">
+      <AutoRefresh active={isReviewInProgress(review.status)} />
       <div>
         <div className="flex items-center gap-2">
           <p className="text-sm text-muted-foreground">
@@ -70,7 +83,9 @@ export default async function ReviewDetailPage({
         changedFilesTruncated={review.changedFilesTruncated}
       />
 
-      {review.verdict && review.summary ? (
+      {review.status === "failed" ? (
+        <VerdictBanner verdict="DO_NOT_APPROVE" summary={SAFE_FAILURE_SUMMARY} />
+      ) : review.verdict && review.summary ? (
         <VerdictBanner verdict={review.verdict} summary={review.summary} />
       ) : (
         <div className="flex items-center gap-3 rounded-xl border border-border bg-surface p-5">
@@ -81,6 +96,17 @@ export default async function ReviewDetailPage({
               : "This pull request is queued for review and will start shortly."}
           </p>
         </div>
+      )}
+
+      {isReviewInProgress(review.status) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Review progress</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ReviewStageProgress reviewStatus={review.status} reviewerRuns={review.reviewerRuns} />
+          </CardContent>
+        </Card>
       )}
 
       <StatusStrip reviewerRuns={review.reviewerRuns} />

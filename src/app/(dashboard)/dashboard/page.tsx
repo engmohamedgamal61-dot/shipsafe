@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { VerdictPill } from "@/components/dashboard/verdict-pill";
 import { SeverityCountsRow } from "@/components/dashboard/severity-counts-row";
 import { LocalDateTime } from "@/components/dashboard/local-date-time";
+import { ReviewStageProgress } from "@/components/dashboard/review-stage-progress";
+import { AutoRefresh } from "@/components/dashboard/auto-refresh";
+import { isReviewInProgress } from "@/lib/review-status";
 
 export default async function DashboardPage() {
   const session = await requireSession();
@@ -14,6 +17,7 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <AutoRefresh active={reviews.some((review) => isReviewInProgress(review.status))} />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Reviews</h1>
         <p className="mt-1 text-muted-foreground">
@@ -53,7 +57,11 @@ export default async function DashboardPage() {
                     <VerdictPill verdict={review.verdict} status={review.status} />
                   </CardHeader>
                   <CardContent className="flex items-center justify-between gap-4">
-                    <SeverityCountsRow counts={counts} />
+                    {isReviewInProgress(review.status) ? (
+                      <ReviewStageProgress reviewStatus={review.status} reviewerRuns={review.reviewerRuns} />
+                    ) : (
+                      <SeverityCountsRow counts={counts} />
+                    )}
                     <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
                   </CardContent>
                 </Card>
