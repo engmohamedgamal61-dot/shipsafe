@@ -50,7 +50,22 @@ const envSchema = z.object({
     .default("development"),
 });
 
-const parsed = envSchema.safeParse({
+/**
+ * `.env.example` documents every optional variable as `KEY=` (blank) so
+ * self-hosters can see the full list in one file. Loaded as-is, that sets
+ * `process.env.KEY` to `""`, not `undefined` — and `""` satisfies neither
+ * `.optional()` (which only accepts `undefined`) nor `.min(1)`/`.enum()`,
+ * so copying `.env.example` to `.env.local` verbatim used to fail this
+ * schema outright, before a self-hoster had filled in a single value.
+ * Treating a blank value as "not set" here is what makes `cp .env.example
+ * .env.local` actually work as the documented starting point (see
+ * README.md).
+ */
+function blankToUndefined(value: string | undefined): string | undefined {
+  return value === "" ? undefined : value;
+}
+
+const rawEnv = {
   NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
   NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
@@ -66,7 +81,11 @@ const parsed = envSchema.safeParse({
   AI_REQUEST_TIMEOUT_MS: process.env.AI_REQUEST_TIMEOUT_MS,
   AI_MAX_CONCURRENT_REVIEWERS: process.env.AI_MAX_CONCURRENT_REVIEWERS,
   NODE_ENV: process.env.NODE_ENV,
-});
+};
+
+const parsed = envSchema.safeParse(
+  Object.fromEntries(Object.entries(rawEnv).map(([key, value]) => [key, blankToUndefined(value)])),
+);
 
 if (!parsed.success) {
   throw new Error(
