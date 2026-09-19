@@ -113,11 +113,22 @@ All database writes for the integration go through
 see `docs/ARCHITECTURE.md` § Server-Authoritative Writes & RLS for why
 that's the only place allowed to write these tables.
 
-Webhook handler failures return HTTP 500 so GitHub retries delivery;
-every write in the ingestion path is upsert/idempotent by natural key
-(`provider,external_repository_id` for repos, `repository_id,number` for
-PRs, `pull_request_id,reviewed_head_sha` for reviews), so a retried
-delivery is safe.
+Each delivery's `X-GitHub-Delivery` id is tracked in
+`github_webhook_deliveries` and only marked permanently deduplicated
+once its handler *succeeds*. A handler failure returns HTTP 500 so
+GitHub retries — that retry, under the same delivery id, reprocesses
+rather than being silently dropped (a redelivery still within a short
+window of the original attempt is instead treated as a possibly-
+concurrent in-flight duplicate and skipped, not double-processed). Most
+writes in the ingestion path are additionally upsert/idempotent by
+natural key (`repository_id,number` for PRs,
+`pull_request_id,reviewed_head_sha` for reviews), so reprocessing a
+retried delivery is safe. The one exception is connecting a repository:
+`upsertRepository` (`src/server/github/writes.ts`) refuses — rather
+than silently reparenting — a repository whose `external_repository_id`
+already belongs to a different workspace, which can happen if a repo is
+transferred on GitHub between accounts that each have ShipSafe
+installed under a different workspace.
 
 ## 5. Troubleshooting
 

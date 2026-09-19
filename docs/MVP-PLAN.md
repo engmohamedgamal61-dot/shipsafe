@@ -237,8 +237,14 @@ test coverage) and why each is safe to defer.
   strictly off `reviewed_head_sha`
 - "Fix with AI": generate a repair branch from findings, re-run review
   (as a new `Review` row against the new head SHA)
-- Background job runner for long-running reviews (queue instead of
-  request/response)
+
+Durable, queue-based review processing (webhook enqueues, a background
+worker processes) — originally listed here as not-yet-built — **is now
+built**: the webhook Route Handler only validates and enqueues a
+`reviews` row, and a worker started from `src/instrumentation.ts` polls
+and processes it. See the README's [Architecture at a
+glance](../README.md#architecture-at-a-glance) and
+`src/server/github/ingest.ts`.
 
 ### Phase 3
 

@@ -1,6 +1,6 @@
 # ShipSafe
 
-**Know if your code is safe to ship.**
+**v1.0.0** · **Know if your code is safe to ship.**
 
 ShipSafe is a self-hosted AI release gate for GitHub pull requests. When a
 PR is opened, reopened, or pushed to, ShipSafe runs five specialist AI
@@ -43,6 +43,10 @@ spec and severity model.
 Deeper reference docs: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) ·
 [`docs/GITHUB_INTEGRATION.md`](docs/GITHUB_INTEGRATION.md) ·
 [`docs/PRODUCT.md`](docs/PRODUCT.md) · [`docs/MVP-PLAN.md`](docs/MVP-PLAN.md).
+
+Release information: [`CHANGELOG.md`](CHANGELOG.md) ·
+[`docs/RELEASE_NOTES_v1.0.0.md`](docs/RELEASE_NOTES_v1.0.0.md) ·
+[`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md).
 
 For a condensed, checkbox version of everything below, see
 [`docs/FRESH_INSTALL_CHECKLIST.md`](docs/FRESH_INSTALL_CHECKLIST.md).
@@ -368,8 +372,10 @@ check what else is already using it.
 This is handled automatically at two layers, so you shouldn't need to do
 anything:
 - GitHub retrying the **same** delivery (its own `X-GitHub-Delivery` id)
-  before your app acked it fast enough is deduped and returns `200`
-  without re-processing.
+  after ShipSafe already processed it successfully is deduped and
+  returns `200` without re-processing. If the first attempt instead
+  *failed* (a transient error), a retry of that same delivery id is
+  correctly reprocessed rather than silently dropped.
 - Any delivery — retried or manually redelivered — for a commit that's
   **already been reviewed** (same PR, same head SHA) is a no-op; reviews
   are bound to an exact commit and are never re-run for it.
