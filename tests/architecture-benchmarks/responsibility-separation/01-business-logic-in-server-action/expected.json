@@ -1,0 +1,26 @@
+{
+  "fixture_id": "responsibility-separation-01-business-logic-in-server-action",
+  "domain": "responsibility-separation",
+  "tags": ["buggy"],
+  "description": "finalizeReview, a Server Action (a thin controller-layer entry point), reimplements the review-verdict business rules (required-reviewer completeness, P0-blocks-approval) inline instead of delegating to the domain layer — the same policy this codebase already centralizes elsewhere.",
+  "files": ["finalize-review.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["responsibility-separation.business-logic-leakage", "responsibility-separation.generic", "duplication.domain-logic-duplicated"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "ARCH-RESPONSIBILITYSEPARATION-001",
+        "files": ["finalize-review.ts"],
+        "line_ranges": { "finalize-review.ts": [10, 19] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "A Server Action is a controller-layer entry point: it should authenticate, call into the domain/application layer, and shape the response — not decide business rules itself. Here it directly encodes the verdict policy (which reviewers are required, that a P0 finding blocks approval) inline, the same substantive rule this codebase's domain layer already owns elsewhere (verdict computation). Placing this logic in the controller means the policy now has two places that must be kept in sync, and the controller is no longer a thin, swappable boundary.",
+        "category": "responsibility-separation.business-logic-leakage"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "Tests business-logic-leakage into the controller/UI-adjacent layer specifically — allowed_categories deliberately also accepts the duplication category as an alternate framing, since reimplementing an existing policy is simultaneously a leakage and a duplication concern; either is an acceptable, equally correct answer."
+}

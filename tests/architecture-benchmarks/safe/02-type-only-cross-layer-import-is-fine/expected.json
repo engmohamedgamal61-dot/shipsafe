@@ -1,0 +1,15 @@
+{
+  "fixture_id": "safe-02-type-only-cross-layer-import-is-fine",
+  "domain": "safe",
+  "tags": ["safe", "false_positive_trap"],
+  "description": "A UI component imports a TYPE (not a value, not business logic) from the domain layer for type safety — the normal, architecturally correct direction of dependency (outer layers depend on inner-layer types), not a layering violation. Zero findings expected.",
+  "files": ["review-list.tsx"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": ["layer-boundaries.cross-layer-import", "layer-boundaries.generic"],
+    "required_findings": [],
+    "optional_findings": []
+  },
+  "explanation": "Tests whether the reviewer distinguishes DIRECTION and KIND of cross-layer reference: a UI component importing a domain TYPE (`import type`) is the textbook-correct, expected pattern in a layered/hexagonal architecture — inner layers must never depend on outer layers, but outer layers depending on inner-layer type definitions is exactly right and necessary for type safety. A reviewer that flags every cross-layer import indiscriminately, without checking direction or whether it's a value vs. type-only reference, fails this fixture."
+}

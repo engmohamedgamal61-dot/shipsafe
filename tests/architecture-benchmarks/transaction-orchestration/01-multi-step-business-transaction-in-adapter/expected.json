@@ -1,0 +1,26 @@
+{
+  "fixture_id": "transaction-orchestration-01-multi-step-business-transaction-in-adapter",
+  "domain": "transaction-orchestration",
+  "tags": ["buggy"],
+  "description": "completeReviewWithFindings, a method on the persistence adapter, orchestrates an entire multi-step business transaction (mark running, insert each finding, compute the verdict via business rules, set the verdict) instead of that orchestration living in the domain/application layer, which this codebase's real ReviewRepository port and ReviewOrchestrator otherwise cleanly separate.",
+  "files": ["supabase-adapter.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["transaction-orchestration.misplaced-in-adapter", "transaction-orchestration.generic", "responsibility-separation.business-logic-leakage"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "ARCH-TRANSACTIONORCHESTRATION-001",
+        "files": ["supabase-adapter.ts"],
+        "line_ranges": { "supabase-adapter.ts": [5, 13] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "This codebase's real ReviewRepository port is read-only (listRepositoriesForUser/listReviewsForUser/getReviewById) precisely because writes and business-rule orchestration belong to the domain/orchestrator layer, not the persistence adapter. Here, completeReviewWithFindings both sequences multiple writes AND computes the verdict policy (a P0 finding blocks approval) directly inside the adapter — transaction orchestration and business-rule evaluation have leaked into what should be a thin persistence boundary.",
+        "category": "transaction-orchestration.misplaced-in-adapter"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete example of orchestration logic placed in the wrong layer: the whole multi-step sequence (three separate calls plus an inline verdict computation) is visible in one method. allowed_categories also accepts the business-logic-leakage framing, since the verdict computation embedded here is the same underlying issue as `responsibility-separation-01`'s, just in the persistence layer instead of the controller layer."
+}

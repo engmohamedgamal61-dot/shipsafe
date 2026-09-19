@@ -1,0 +1,26 @@
+{
+  "fixture_id": "duplication-01-severity-order-duplicated-across-modules",
+  "domain": "duplication",
+  "tags": ["buggy", "multi_file"],
+  "description": "Both release-judge.ts and dashboard-summary.ts independently define their own identical SEVERITY_ORDER array instead of importing one shared ranking from the domain layer, creating drift risk: a future severity level or reordering added to one copy silently never reaches the other.",
+  "files": ["release-judge.ts", "dashboard-summary.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["duplication.domain-logic-duplicated", "duplication.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "ARCH-DUPLICATION-001",
+        "files": ["release-judge.ts", "dashboard-summary.ts"],
+        "line_ranges": { "release-judge.ts": [3, 3], "dashboard-summary.ts": [3, 3] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "The exact same `const SEVERITY_ORDER = [\"NIT\", \"P2\", \"P1\", \"P0\"]` array is independently authored in two unrelated modules. Severity ranking is domain policy — it belongs in one place (the domain layer) that both modules import, not copy-pasted. As written, updating one copy (e.g. to add a new severity level) silently leaves the other stale, an architectural divergence risk visible directly by comparing the two files.",
+        "category": "duplication.domain-logic-duplicated"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete, line-for-line duplication of a domain-policy constant across two real modules — the diff itself proves the duplication (both files are shown, both define the identical array), no inference about hypothetical future files required. Tests 'one root cause, one finding' the other direction from the circular-dependency fixture: here a good reviewer should recognize ONE duplication defect spanning two files, not flag each file's definition as its own separate finding."
+}

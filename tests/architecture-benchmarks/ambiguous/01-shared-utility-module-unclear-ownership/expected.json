@@ -1,0 +1,26 @@
+{
+  "fixture_id": "ambiguous-01-shared-utility-module-unclear-ownership",
+  "domain": "ambiguous",
+  "tags": ["ambiguous"],
+  "description": "A new, ungrouped top-level shared-utils.ts file defines a generic formatting helper alongside computeStalenessThresholdMs — a function whose value (one day, in milliseconds) reads like it could be either a harmless generic constant or an encoded business policy (how long before a review is considered stale) that arguably belongs in the domain layer. Which one it is depends on how/where it's actually used, which this diff does not show.",
+  "files": ["shared-utils.ts"],
+  "expected": {
+    "needs_more_context_acceptable": true,
+    "allowed_categories": ["responsibility-separation.generic", "layer-boundaries.generic"],
+    "prohibited_categories": ["circular-dependency.generic", "provider-leakage.generic", "coupling.bypasses-port-abstraction"],
+    "required_findings": [],
+    "optional_findings": [
+      {
+        "id": "opt-1",
+        "rule_id": "ARCH-AMBIGUOUS-001",
+        "files": ["shared-utils.ts"],
+        "line_ranges": { "shared-utils.ts": [5, 7] },
+        "severity_range": ["Nit", "P2"],
+        "confidence_range": ["low", "low"],
+        "justification": "Unconfirmed by this fixture: computeStalenessThresholdMs's one-day value could be an arbitrary, harmless generic default, or it could encode an actual business rule about when a review is considered stale — which would belong in the domain layer, not an ungrouped utils file. Without seeing its call site(s) or whether this value is expected to become configurable/policy-driven, the correct answer is that this cannot be confirmed as a real architectural misplacement, not a confident assertion either way.",
+        "category": "responsibility-separation.generic"
+      }
+    ]
+  },
+  "explanation": "Mirrors the other three benchmarks' own ambiguous-fixture pattern (a plausible concern whose confirmation depends on context not included in the diff): the three fully correct responses are (a) zero findings, (b) an explicit needs-more-context signal, or (c) a single low-confidence finding matching opt-1. A confident/high-confidence finding asserting this is definitely misplaced domain policy is scored as an overclaim, since the diff alone cannot distinguish 'harmless utility constant' from 'undisclosed business rule'."
+}

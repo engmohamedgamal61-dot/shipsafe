@@ -1,0 +1,26 @@
+{
+  "fixture_id": "circular-dependency-01-mutual-imports-between-services",
+  "domain": "circular-dependency",
+  "tags": ["buggy", "multi_file"],
+  "description": "src/server/github/ingest.ts imports from src/server/demo/seed.ts, and seed.ts imports back from ingest.ts — a genuine circular dependency between a real-data ingestion module and a demo-seeding module that have no legitimate reason to depend on each other at all.",
+  "files": ["ingest.ts", "seed.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["circular-dependency.mutual-module-imports", "circular-dependency.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "ARCH-CIRCULARDEPENDENCY-001",
+        "files": ["ingest.ts", "seed.ts"],
+        "line_ranges": { "ingest.ts": [1, 1], "seed.ts": [1, 1] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "ingest.ts imports recordReviewCompletion from seed.ts (real GitHub PR ingestion depending on demo-seeding code), and seed.ts imports ingestPullRequest from ingest.ts (demo-seeding code depending back on real ingestion) — a two-file cycle, directly visible from the two import statements, with no legitimate architectural reason for either module to depend on the other. The reviewer may anchor its finding to either file's import line, since both are equally valid evidence of the same single cycle.",
+        "category": "circular-dependency.mutual-module-imports"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete, evidenced circular-dependency case (not a hypothetical or deep multi-hop cycle) — two files, two import statements, directly visible in the diff. Deliberately tests that the reviewer treats this as ONE root cause regardless of which file it anchors the finding to, not two separate findings (one per file)."
+}

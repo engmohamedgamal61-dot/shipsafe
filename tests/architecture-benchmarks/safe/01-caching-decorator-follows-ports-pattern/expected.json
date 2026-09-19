@@ -1,0 +1,15 @@
+{
+  "fixture_id": "safe-01-caching-decorator-follows-ports-pattern",
+  "domain": "safe",
+  "tags": ["safe", "false_positive_trap"],
+  "description": "A new decorator that correctly implements the existing ReviewRepository port, wraps an injected inner repository, and adds caching without any cross-layer import, business-logic leakage, or coupling to a concrete implementation. Zero findings expected.",
+  "files": ["caching-review-repository.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": [],
+    "required_findings": [],
+    "optional_findings": []
+  },
+  "explanation": "A textbook-correct decorator pattern: depends only on the port interface (never a concrete adapter), takes its dependency via constructor injection (never instantiates one itself), and adds a pure infrastructure concern (caching) without touching business rules. This is architecturally sound and should produce zero findings — a reviewer that flags 'a new class wrapping another' or 'a private Map field' without a real violation fails this test."
+}

@@ -1,0 +1,26 @@
+{
+  "fixture_id": "layer-boundaries-01-repository-imports-ui-component",
+  "domain": "layer-boundaries",
+  "tags": ["buggy"],
+  "description": "SupabaseReviewRepository, a persistence adapter, imports and directly invokes a React UI component (RepositoryCard) to build part of the data it returns — the data-access layer now depends on the presentation layer, inverting the dependency direction this codebase's ports/adapters architecture requires.",
+  "files": ["supabase-adapter.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["layer-boundaries.cross-layer-import", "layer-boundaries.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "ARCH-LAYERBOUNDARIES-001",
+        "files": ["supabase-adapter.ts"],
+        "line_ranges": { "supabase-adapter.ts": [2, 8] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "A repository/persistence adapter's job is to fetch and shape data — it must never import from `@/components`, which is presentation-layer, UI-framework-specific code. This import (and the call to RepositoryCard(...) to build a `displayCard` field baked into the returned Repository objects) inverts the dependency direction: the innermost data layer now depends on the outermost UI layer, the opposite of how this codebase's own ports/adapters convention (see docs/ARCHITECTURE.md and container.ts) is structured everywhere else.",
+        "category": "layer-boundaries.cross-layer-import"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete, unambiguous dependency-direction violation: the import statement and its one call site are both directly visible in an 8-line method, no unseen context needed. Tests whether the reviewer catches a repository depending on UI code specifically (as opposed to a vaguer 'this file does too much')."
+}

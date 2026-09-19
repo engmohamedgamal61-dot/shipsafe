@@ -1,0 +1,26 @@
+{
+  "fixture_id": "coupling-01-repository-bypasses-port-for-provider",
+  "domain": "coupling",
+  "tags": ["buggy"],
+  "description": "SupabaseReviewRepository directly imports and instantiates AnthropicProvider — a concrete AI-provider adapter from a completely unrelated layer — bypassing this codebase's entire ports/adapters composition-root pattern (container.ts) and tightly coupling the persistence layer to a specific AI vendor.",
+  "files": ["supabase-adapter.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["coupling.bypasses-port-abstraction", "coupling.generic", "layer-boundaries.cross-layer-import"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "ARCH-COUPLING-001",
+        "files": ["supabase-adapter.ts"],
+        "line_ranges": { "supabase-adapter.ts": [1, 9] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "This codebase's own composition root (container.ts) is the ONLY place that is supposed to decide which concrete adapter backs a port — every other module depends on port types (ReviewRepository, AIProvider), never a concrete class. Here the persistence adapter directly imports and `new`s up AnthropicProvider itself, and calls its review() method from inside a data-listing method that has nothing to do with AI review. This is inappropriate coupling between two unrelated layers, bypassing dependency injection entirely.",
+        "category": "coupling.bypasses-port-abstraction"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete, self-contained coupling violation: the whole chain (import, field instantiation, and the out-of-place call) is visible within 9 lines. allowed_categories also accepts the cross-layer-import framing as an equally valid description of the same root cause."
+}

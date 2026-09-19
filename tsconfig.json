@@ -34,6 +34,7 @@
     "node_modules",
     "tests/security-benchmarks/**/fixture/**",
     "tests/code-benchmarks/**/fixture/**",
-    "tests/database-benchmarks/**/fixture/**"
+    "tests/database-benchmarks/**/fixture/**",
+    "tests/architecture-benchmarks/**/fixture/**"
   ]
 }

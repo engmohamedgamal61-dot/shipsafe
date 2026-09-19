@@ -1,0 +1,444 @@
+{
+  "isCompatibilityBaseline": true,
+  "note": "This is a compatibility baseline of the CURRENT production Architecture Reviewer, measured as-shipped.",
+  "metadata": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-5",
+    "maxTokens": 4096,
+    "concurrency": 1,
+    "timeoutMs": 30000,
+    "versions": {
+      "architectureBenchmarkSchemaVersion": "1.0.0",
+      "architectureBenchmarkDatasetVersion": "phase1-10-of-10",
+      "architectureReviewerPromptVersion": "untracked-first-baseline-pass"
+    },
+    "runTimestamp": "2026-09-19T16:29:46.047Z"
+  },
+  "fixtures": [
+    {
+      "fixtureId": "ambiguous-01-shared-utility-module-unclear-ownership",
+      "domain": "ambiguous",
+      "tags": [
+        "ambiguous"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "responsibility-separation.business-logic-leakage",
+          "severity": "P2",
+          "confidence": "low",
+          "file": "shared-utils.ts",
+          "lineStart": 1,
+          "lineEnd": 7,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_optional",
+          "matchedId": "opt-1",
+          "evidence": "shared-utils.ts exports formatReviewSummary, a presentation-layer concern (rendering a verdict/finding-count into a display string), alongside computeStalenessThresholdMs, which encodes a domain/business policy value (how long data is considered fresh). Grouping them in a single flat, genre-less utility file gives the module no clear layer or owner: it's unclear whether this file belongs to the domain layer, an application service, or a UI helper library. This makes it likely that domain policy constants and presentation helpers will keep accreting into the same ungoverned module as the codebase grows, blurring layer boundaries between domain policy and presentation concerns."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 11074,
+      "inputTokens": 2893,
+      "outputTokens": 897,
+      "errorMessage": null,
+      "rawSummary": "The new shared-utils.ts file bundles two unrelated concerns—a presentation/formatting helper and a domain policy constant—into a single generically-named module with no clear ownership boundary, which is an architectural smell around responsibility placement rather than a functional bug."
+    },
+    {
+      "fixtureId": "circular-dependency-01-mutual-imports-between-services",
+      "domain": "circular-dependency",
+      "tags": [
+        "buggy",
+        "multi_file"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 0.7,
+      "normalizedScore": 0.9500000000000001,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "circular-dependency.mutual-module-imports",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "ingest.ts",
+          "lineStart": 1,
+          "lineEnd": 1,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "[unverified quote removed] imports `recordReviewCompletion` from `@/server/demo/seed`, and [unverified quote removed] imports `ingestPullRequest` from [unverified quote removed]. This creates a direct mutual/circular module dependency: ingest depends on seed, and seed depends on ingest. This couples a production ingestion pathway to demo/seed data utilities, and means neither module can be understood, tested, or evolved independently of the other. It also risks module-resolution/initialization-order issues typical of circular imports."
+        },
+        {
+          "index": 1,
+          "category": "responsibility-separation.business-logic-leakage",
+          "severity": "P2",
+          "confidence": "medium",
+          "file": "seed.ts",
+          "lineStart": 1,
+          "lineEnd": 9,
+          "matchMethod": "canonical_category_location",
+          "classification": "duplicate",
+          "matchedId": "req-1",
+          "evidence": "[unverified quote removed]'s `resetDemoData` calls into `ingestPullRequest` from the github ingestion module, meaning demo/test seeding logic is directly orchestrating production domain functionality, while the production [unverified quote removed] module in turn depends back on the demo module to record completion. This is an improper responsibility placement: production ingestion should not know about or invoke demo seeding utilities, and demo seeding should not be a required dependency for core ingestion to compile/run."
+        }
+      ],
+      "failureReasons": [
+        "duplicate root cause"
+      ],
+      "latencyMs": 10685,
+      "inputTokens": 3051,
+      "outputTokens": 948,
+      "errorMessage": null,
+      "rawSummary": "The diff introduces two new modules, `ingest.ts` (github ingest domain) and `seed.ts` (demo seed data), that import from each other, forming a mutual/circular module dependency. This couples an ingestion pathway to a demo/test-data seeding utility and vice versa, which is a structural boundary violation regardless of runtime behavior."
+    },
+    {
+      "fixtureId": "coupling-01-repository-bypasses-port-for-provider",
+      "domain": "coupling",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "coupling.bypasses-port-abstraction",
+          "severity": "P1",
+          "confidence": "low",
+          "file": "supabase-adapter.ts",
+          "lineStart": 1,
+          "lineEnd": 12,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "SupabaseReviewRepository, which implements the ReviewRepository port for data persistence, imports and instantiates `AnthropicProvider` directly (`private readonly provider = new AnthropicProvider(process.env.ANTHROPIC_API_KEY ?? \"\");`) and calls [unverified quote removed] from within `listRepositoriesForUser`. This mixes two unrelated architectural concerns: repository/persistence logic and AI-provider orchestration. The repository layer should depend only on abstractions relevant to its own responsibility (data access), not reach across into the review-engine's concrete provider implementation. This creates a dependency-direction violation (persistence layer depending on a provider concretion instead of going through a port), and hard-codes vendor-specific behavior into a component whose interface (ReviewRepository) gives no indication it performs AI calls."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 10588,
+      "inputTokens": 3018,
+      "outputTokens": 842,
+      "errorMessage": null,
+      "rawSummary": "The new SupabaseReviewRepository, an implementation of the ReviewRepository persistence port, directly imports and instantiates the concrete AnthropicProvider from the review-engine layer and invokes it inside a repository method unrelated to AI review functionality. This couples the data-access adapter to a specific LLM provider implementation and to review-engine internals, violating layer boundaries and bypassing any provider port/abstraction that would normally mediate such a dependency."
+    },
+    {
+      "fixtureId": "duplication-01-severity-order-duplicated-across-modules",
+      "domain": "duplication",
+      "tags": [
+        "buggy",
+        "multi_file"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "duplication.domain-logic-duplicated",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "release-judge.ts",
+          "lineStart": 3,
+          "lineEnd": 3,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "Both release-judge.ts and dashboard-summary.ts independently declare the same `SEVERITY_ORDER = [\"NIT\", \"P2\", \"P1\", \"P0\"]` array to encode the domain rule for severity ranking. This is a piece of domain policy (how severities compare) duplicated in two separate files instead of being defined once and imported/shared. If the severity set or ordering changes, one copy could be updated while the other is missed, causing the release judge and dashboard summary to silently disagree on severity ranking."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 5797,
+      "inputTokens": 3164,
+      "outputTokens": 445,
+      "errorMessage": null,
+      "rawSummary": "Two new modules independently define the same severity-ordering domain policy (SEVERITY_ORDER array) rather than sharing a single canonical definition, creating duplicated domain logic that will drift if severity levels or their ordering change."
+    },
+    {
+      "fixtureId": "layer-boundaries-01-repository-imports-ui-component",
+      "domain": "layer-boundaries",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "layer-boundaries.cross-layer-import",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "supabase-adapter.ts",
+          "lineStart": 2,
+          "lineEnd": 8,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "supabase-adapter.ts, an infrastructure-layer repository implementation, imports `RepositoryCard` from `@/components/dashboard/repository-card` and calls it inside `listRepositoriesForUser` to build a `displayCard` field on the returned domain object: `rows.map((row) => ({ ...row, displayCard: RepositoryCard({ repository: row }) }))`. This makes the data-access layer depend on the presentation layer, inverting the correct dependency direction (UI -> domain/data, not data -> UI). It also leaks a UI-rendering responsibility into what should be a pure data-fetching adapter, and pollutes the `Repository` domain type with a presentation-specific `displayCard` property."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 9171,
+      "inputTokens": 3016,
+      "outputTokens": 815,
+      "errorMessage": null,
+      "rawSummary": "The SupabaseReviewRepository adapter (infrastructure layer) imports and invokes a React UI component (RepositoryCard) directly, and embeds the resulting UI output into the domain Repository object returned from a data-access method. This inverts the expected dependency direction (UI should depend on data/domain layers, not vice versa) and couples the persistence adapter to presentation concerns."
+    },
+    {
+      "fixtureId": "provider-leakage-01-domain-type-imports-vendor-sdk-type",
+      "domain": "provider-leakage",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "provider-leakage.vendor-type-in-domain",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "types.ts",
+          "lineStart": 1,
+          "lineEnd": 10,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "The domain-level `Finding` interface directly references `Anthropic.Messages.Message` from the `@anthropic-ai/sdk` package via the `rawProviderMessage` field. This couples the domain model to a specific vendor's SDK type, meaning any change to the Anthropic SDK's message shape (or a switch to a different LLM provider) forces changes to core domain types. Domain/business types should not depend on external provider SDKs; provider-specific data should be mapped to a domain-owned representation (or kept entirely within an infrastructure/adapter layer) before crossing into the domain."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 6913,
+      "inputTokens": 2898,
+      "outputTokens": 600,
+      "errorMessage": null,
+      "rawSummary": "The new types.ts file, which defines core domain types (Severity, Finding), directly imports and embeds a vendor SDK type (Anthropic.Messages.Message) as a field on the domain Finding interface. This leaks a third-party provider's concrete type into the domain layer, coupling domain models to a specific vendor SDK."
+    },
+    {
+      "fixtureId": "responsibility-separation-01-business-logic-in-server-action",
+      "domain": "responsibility-separation",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "responsibility-separation.business-logic-leakage",
+          "severity": "P1",
+          "confidence": "medium",
+          "file": "finalize-review.ts",
+          "lineStart": 1,
+          "lineEnd": 22,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "The `finalizeReview` server action directly computes the review verdict (checking required reviewer completion and P0 findings) using hardcoded business rules (`const requiredReviewers = [\"code\", \"security\", \"database\"];` and the P0 gating logic), and it also calls `getReviewRepository()` itself to fetch the review. This puts domain/business logic and data-access orchestration in the transport/action layer rather than in a domain or application service that the action would merely invoke. As a result the approval policy is coupled to the server-action layer, cannot be reused by other callers (e.g. background jobs, other API surfaces), and there is no clear domain module that owns 'what makes a review approvable'."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 11879,
+      "inputTokens": 3141,
+      "outputTokens": 864,
+      "errorMessage": null,
+      "rawSummary": "The new finalize-review.ts server action embeds domain-level verdict/business policy (required reviewer checks, P0 severity gating, verdict determination) directly inside a \"use server\" action that also talks straight to the repository via getReviewRepository(). This mixes orchestration, domain policy, and persistence access in a single presentation-layer entry point instead of delegating to a domain/service layer, so the review-approval policy is not owned by a domain module and can't be reused or tested independently of the server-action/framework layer."
+    },
+    {
+      "fixtureId": "safe-01-caching-decorator-follows-ports-pattern",
+      "domain": "safe",
+      "tags": [
+        "safe",
+        "false_positive_trap"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [],
+      "failureReasons": [],
+      "latencyMs": 3464,
+      "inputTokens": 3279,
+      "outputTokens": 109,
+      "errorMessage": null,
+      "rawSummary": "This diff adds a decorator implementing the ReviewRepository port, correctly wrapping an inner repository via constructor injection without leaking infrastructure details or importing outside its layer. No architectural boundary, coupling, or responsibility-placement defects are evident in this small, self-contained file."
+    },
+    {
+      "fixtureId": "safe-02-type-only-cross-layer-import-is-fine",
+      "domain": "safe",
+      "tags": [
+        "safe",
+        "false_positive_trap"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [],
+      "failureReasons": [],
+      "latencyMs": 2733,
+      "inputTokens": 2889,
+      "outputTokens": 121,
+      "errorMessage": null,
+      "rawSummary": "This diff adds a small presentation component that imports a type-only definition from the domain layer using TypeScript's `import type`. This is a compile-time-only reference with no runtime dependency or coupling to domain infrastructure, so it does not constitute a genuine layer-boundary violation. No architectural defects are demonstrated in this change."
+    },
+    {
+      "fixtureId": "transaction-orchestration-01-multi-step-business-transaction-in-adapter",
+      "domain": "transaction-orchestration",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "transaction-orchestration.misplaced-in-adapter",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "supabase-adapter.ts",
+          "lineStart": 5,
+          "lineEnd": 12,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "`completeReviewWithFindings` in `SupabaseReviewRepository` (an infrastructure adapter implementing the `ReviewRepository` port) coordinates a multi-step business workflow: marking the review running, looping to insert each finding, computing the review verdict from finding severities, and persisting that verdict. This puts both process orchestration (sequencing multiple persistence operations) and domain policy (the APPROVE/DO_NOT_APPROVE rule based on P0 severity) inside the adapter layer instead of an application/domain service that would call narrower repository methods. This couples the workflow's correctness to a single concrete adapter, duplicates domain policy logic outside the domain layer, and makes it impossible to reuse or test the workflow independent of Supabase-specific persistence."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 12949,
+      "inputTokens": 3169,
+      "outputTokens": 1047,
+      "errorMessage": null,
+      "rawSummary": "The SupabaseReviewRepository adapter, which implements a persistence port (ReviewRepository), contains a full multi-step business transaction (marking a review running, inserting findings, computing a verdict, persisting the verdict) including the actual verdict-determination policy. This orchestration and domain policy belong in an application/domain service that calls the repository for each step, not inside the infrastructure adapter itself."
+    }
+  ],
+  "suite": {
+    "fixturesRun": 10,
+    "fixturesPassed": 10,
+    "fixturesFailed": 0,
+    "totalProducedFindings": 9,
+    "classificationCounts": {
+      "matched_required": 7,
+      "matched_optional": 1,
+      "duplicate": 1,
+      "prohibited": 0,
+      "unsupported_extra": 0,
+      "hallucinated_path": 0,
+      "fabricated_evidence": 0
+    },
+    "precision": 0.8888888888888888,
+    "recall": 1,
+    "p0Recall": 1,
+    "p1Recall": 1,
+    "falsePositiveRate": 0,
+    "hallucinationRate": 0,
+    "fabricatedEvidenceRate": 0,
+    "speculativeRate": 0,
+    "duplicateRate": 0.1111111111111111,
+    "severityAccuracyRate": 1,
+    "categoryAccuracyRate": 1,
+    "confidenceCalibration": {
+      "high": {
+        "total": 5,
+        "correct": 5,
+        "rate": 1
+      },
+      "medium": {
+        "total": 2,
+        "correct": 2,
+        "rate": 1
+      },
+      "low": {
+        "total": 2,
+        "correct": 2,
+        "rate": 1
+      }
+    },
+    "byDomain": {
+      "ambiguous": 1,
+      "circular-dependency": 0.9500000000000001,
+      "coupling": 1,
+      "duplication": 1,
+      "layer-boundaries": 1,
+      "provider-leakage": 1,
+      "responsibility-separation": 1,
+      "safe": 1,
+      "transaction-orchestration": 1
+    },
+    "byTag": {
+      "ambiguous": 1,
+      "buggy": 0.9928571428571429,
+      "multi_file": 0.9750000000000001,
+      "safe": 1,
+      "false_positive_trap": 1
+    },
+    "failedFixtures": []
+  },
+  "extraMetrics": {
+    "safeCodeFalsePositiveRate": 0,
+    "ambiguousOverclaimRate": 0,
+    "averageLatencyMs": 8525.3,
+    "totalInputTokens": 30518,
+    "totalOutputTokens": 6688
+  },
+  "fixturesWithProviderOrAdapterFailure": []
+}
