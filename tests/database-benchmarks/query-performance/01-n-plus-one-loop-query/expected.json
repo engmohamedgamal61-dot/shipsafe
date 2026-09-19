@@ -1,0 +1,26 @@
+{
+  "fixture_id": "query-performance-01-n-plus-one-loop-query",
+  "domain": "query-performance",
+  "tags": ["buggy"],
+  "description": "attachLatestReviewStatus issues one separate reviews query per pull request inside a for loop instead of a single batched query — a classic N+1 pattern with the query call itself visible directly inside the loop body, not a hypothetical scale concern.",
+  "files": ["attach-review-status.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["performance.n-plus-one", "performance.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "DB-QUERYPERFORMANCE-001",
+        "files": ["attach-review-status.ts"],
+        "line_ranges": { "attach-review-status.ts": [6, 14] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "The `supabase.from(\"reviews\")...eq(\"pull_request_id\", pr.id)` call sits directly inside the `for (const pr of pullRequests)` loop body, issuing one round-trip per pull request instead of a single query batched with `.in(\"pull_request_id\", ...)`. This is concrete, visible evidence of an N+1 access pattern in the diff itself — not a speculative claim about traffic or table size not shown here.",
+        "category": "performance.n-plus-one"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "Deliberately gives CONCRETE evidence (the query call literally inside the loop) rather than asking the reviewer to assume scale/traffic it can't see — the batched fix would move `.in(\"pull_request_id\", pullRequests.map(p => p.id))` outside the loop entirely, which is exactly what makes this a real, visible defect rather than a guess about production load."
+}

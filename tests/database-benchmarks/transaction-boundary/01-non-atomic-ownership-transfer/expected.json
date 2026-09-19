@@ -1,0 +1,26 @@
+{
+  "fixture_id": "transaction-boundary-01-non-atomic-ownership-transfer",
+  "domain": "transaction-boundary",
+  "tags": ["buggy"],
+  "description": "transferWorkspaceOwnership performs the demote-old-owner and promote-new-owner updates as two separate, sequential, non-transactional writes — if the second update fails after the first succeeds, the workspace is left with zero owners.",
+  "files": ["transfer-ownership.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["transaction-boundary.non-atomic-multi-step-write", "transaction-boundary.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "DB-TRANSACTIONBOUNDARY-001",
+        "files": ["transfer-ownership.ts"],
+        "line_ranges": { "transfer-ownership.ts": [5, 15] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "The two `.update()` calls are independent Postgres statements issued sequentially over the Supabase client, with no transaction or single RPC wrapping them. If the process crashes, the connection drops, or the second update fails for any reason after the first commits, the workspace ends up with no owner member at all (fromUserId demoted, toUserId never promoted) — a real, currently-reachable inconsistent state, not a hypothetical one.",
+        "category": "transaction-boundary.non-atomic-multi-step-write"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A genuine transaction-boundary defect visible entirely within these two statements: the correct fix is a single Postgres function invoked via RPC (or an explicit transaction) so both role changes commit or fail together — no unseen application context changes that conclusion."
+}

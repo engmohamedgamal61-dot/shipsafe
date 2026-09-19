@@ -1,0 +1,37 @@
+{
+  "fixture_id": "cascade-delete-01-unsafe-cascade-destroys-audit-trail",
+  "domain": "cascade-delete",
+  "tags": ["buggy"],
+  "description": "workspace_audit_log.actor_id cascades on delete from public.profiles, so deleting a user's profile silently deletes every compliance audit-log row that user ever produced — exactly the record a compliance audit log exists to keep even after the actor is gone.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["cascade-delete.unsafe-cascade", "cascade-delete.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "DB-CASCADEDELETE-001",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [6, 6] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "The table's own stated purpose is 'audit log ... for compliance review', which requires the record to survive the actor being deleted, deactivated, or offboarded. `on delete cascade` on actor_id instead silently erases every audit row for that user the moment their profile row is removed, defeating the table's entire purpose. workspace_id's own `on delete cascade` on the same table (line 5) is correct by contrast — deleting the whole workspace SHOULD take its audit log with it — so this is specifically about actor_id, not cascade-on-delete in general.",
+        "category": "cascade-delete.unsafe-cascade"
+      }
+    ],
+    "optional_findings": [
+      {
+        "id": "opt-1",
+        "rule_id": "DB-CASCADEDELETE-002",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [5, 5] },
+        "severity_range": ["Nit", "P1"],
+        "confidence_range": ["low", "high"],
+        "justification": "Added after the first live baseline run: a reasonable, defensible reviewer position holds that a COMPLIANCE audit log should survive even full-workspace deletion (to investigate who deleted the workspace and why), not just individual-actor deletion — real compliance regimes vary on this. This fixture's primary, unambiguous defect remains actor_id's cascade (req-1); flagging workspace_id's cascade too is an acceptable, genuinely debatable secondary observation, not a prohibited overreach.",
+        "category": "cascade-delete.unsafe-cascade"
+      }
+    ]
+  },
+  "explanation": "Tests precision, not just pattern-matching 'cascade is scary': the table has TWO `on delete cascade` foreign keys. actor_id's cascade (req-1) is the unambiguous, required defect — no reasonable interpretation of a compliance audit log accepts losing history when a single user account is removed. workspace_id's cascade (opt-1) is deliberately left as an ACCEPTABLE secondary observation rather than prohibited: whether a full-workspace deletion should also preserve its audit trail is a genuinely debatable compliance-design question, not a settled one, discovered via Phase 4 analysis of the first live baseline run's own reasonable counter-argument."
+}

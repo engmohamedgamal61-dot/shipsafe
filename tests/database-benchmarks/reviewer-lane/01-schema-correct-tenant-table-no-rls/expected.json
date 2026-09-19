@@ -1,0 +1,15 @@
+{
+  "fixture_id": "reviewer-lane-01-schema-correct-tenant-table-no-rls",
+  "domain": "reviewer-lane",
+  "tags": ["safe", "false_positive_trap"],
+  "description": "A schema-correct new tenant-scoped table (proper FKs, NOT NULL columns, correctly tenant-scoped uniqueness, an index) that has no `enable row level security` statement and no policies at all. From a pure schema-integrity standpoint the table is well-designed; the missing RLS/access-control layer is a Security Reviewer concern, not a schema/constraint/query defect, so the DATABASE Reviewer should produce zero findings here.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": ["tenant-isolation.generic", "tenant-isolation.missing-rls"],
+    "required_findings": [],
+    "optional_findings": []
+  },
+  "explanation": "Every constraint, type, and index on this table is correct: the FK/NOT NULL/unique/index shapes are identical in spirit to `safe-migration-01`'s. The only thing 'wrong' with this migration is the complete absence of `alter table ... enable row level security` and any policy — which is squarely the Security Reviewer's job (see `tests/security-benchmarks/database/01-rls-never-enabled-on-tenant-table`, which requires exactly the SECURITY reviewer to flag this same scenario). Zero DATABASE findings expected; a Database Reviewer that reports an RLS/tenant-isolation finding here is drifting into the Security Reviewer's lane, which the task instructions explicitly warn against."
+}

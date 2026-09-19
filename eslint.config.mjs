@@ -36,6 +36,13 @@ const eslintConfig = defineConfig([
     // executed by the app, not meant to lint/typecheck clean (see
     // tests/code-benchmarks/README.md).
     "tests/code-benchmarks/**/fixture/**",
+    // Database-benchmark fixture source snippets are likewise minimal,
+    // illustrative migration/query samples (some deliberately import a
+    // service-client module path that isn't real in the fixture set,
+    // since only the shown migration/query's own logic is under test) —
+    // never imported or executed by the app, not meant to lint/typecheck
+    // clean (see tests/database-benchmarks/README.md).
+    "tests/database-benchmarks/**/fixture/**",
   ]),
 ]);
 

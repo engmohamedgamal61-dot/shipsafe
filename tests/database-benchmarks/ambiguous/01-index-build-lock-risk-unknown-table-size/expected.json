@@ -1,0 +1,25 @@
+{
+  "fixture_id": "ambiguous-01-index-build-lock-risk-unknown-table-size",
+  "domain": "ambiguous",
+  "tags": ["ambiguous"],
+  "description": "A plain `create index` (without CONCURRENTLY) on public.reviews takes a lock that blocks writes to that table for the duration of the index build. Whether this is actually a problem depends entirely on how large reviews currently is and how much concurrent write traffic hits it in production — neither of which this one-line migration shows.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": true,
+    "allowed_categories": ["migration-safety.generic", "performance.generic"],
+    "prohibited_categories": ["race-condition.generic", "cascade-delete.generic", "foreign-keys.generic"],
+    "required_findings": [],
+    "optional_findings": [
+      {
+        "id": "opt-1",
+        "rule_id": "DB-AMBIGUOUS-001",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [3, 3] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["low", "low"],
+        "justification": "A plain CREATE INDEX holds a lock that blocks concurrent writes to public.reviews for as long as the index build takes. On a small or lightly-written table this is a total non-issue (near-instant); on a large, high-write-volume production table it can cause a noticeable write-blocking pause. This fixture shows neither the table's current size nor its write traffic, so the correct answer is that it CANNOT be confirmed from what's shown — not a confident assertion that this migration is unsafe."
+      }
+    ]
+  },
+  "explanation": "Mirrors the code/security benchmarks' own ambiguous-fixture pattern (a plausible defect whose confirmation depends on production context not included in the diff): the three fully correct responses are (a) zero findings, (b) an explicit needs-more-context signal, or (c) a single low-confidence finding matching opt-1 suggesting CREATE INDEX CONCURRENTLY as a defensive default. A confident/high-confidence finding asserting this migration WILL cause an outage is an overclaim — reviews's actual current size is exactly the kind of unseen context the task instructions warn against assuming."
+}

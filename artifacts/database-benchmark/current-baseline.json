@@ -1,0 +1,489 @@
+{
+  "isCompatibilityBaseline": true,
+  "note": "This is a compatibility baseline of the CURRENT production Database Reviewer, measured as-shipped.",
+  "metadata": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-5",
+    "maxTokens": 4096,
+    "concurrency": 1,
+    "timeoutMs": 30000,
+    "versions": {
+      "databaseBenchmarkSchemaVersion": "1.0.0",
+      "databaseBenchmarkDatasetVersion": "phase1-10-of-10",
+      "databaseReviewerPromptVersion": "untracked-first-baseline-pass"
+    },
+    "runTimestamp": "2026-09-19T15:43:03.394Z"
+  },
+  "fixtures": [
+    {
+      "fixtureId": "ambiguous-01-index-build-lock-risk-unknown-table-size",
+      "domain": "ambiguous",
+      "tags": [
+        "ambiguous"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "migration-safety.unsafe-not-null-addition",
+          "severity": "P2",
+          "confidence": "low",
+          "file": "migration.sql",
+          "lineStart": 3,
+          "lineEnd": 3,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_optional",
+          "matchedId": "opt-1",
+          "evidence": "The migration runs `create index if not exists reviews_verdict_idx on public.reviews (verdict);` without the CONCURRENTLY option. A standard CREATE INDEX takes a SHARE lock on the table, blocking concurrent INSERT/UPDATE/DELETE statements until the index build completes. If the reviews table is large or under active write load, this could cause a noticeable outage or query pile-up during migration. I cannot confirm the current size or write traffic of the reviews table from this diff, so the real-world severity is uncertain."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 6722,
+      "inputTokens": 2682,
+      "outputTokens": 520,
+      "errorMessage": null,
+      "rawSummary": "The migration adds a new index on reviews.verdict using a plain CREATE INDEX, which takes a lock that blocks writes to the table for the duration of the build. Whether this is a real production risk depends on the current size and write traffic of the reviews table, which this diff cannot show."
+    },
+    {
+      "fixtureId": "cascade-delete-01-unsafe-cascade-destroys-audit-trail",
+      "domain": "cascade-delete",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "cascade-delete.unsafe-cascade",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "migration.sql",
+          "lineStart": 6,
+          "lineEnd": 7,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "workspace_audit_log.workspace_id and actor_id both use `on delete cascade`. Since this table's stated purpose is a compliance audit trail, cascading deletes mean that deleting a workspace or a profile (actor) will silently erase all associated audit history. For an audit log, records should typically survive deletion of the referenced entities (e.g. via ON DELETE SET NULL or RESTRICT, with actor identity captured redundantly) rather than being cascade-deleted, since that removes the very evidence the table exists to preserve."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 7030,
+      "inputTokens": 2823,
+      "outputTokens": 543,
+      "errorMessage": null,
+      "rawSummary": "The new workspace_audit_log table cascades deletes from both workspaces and profiles, meaning audit records — which exist specifically for compliance review — are permanently destroyed whenever the referenced workspace or actor is deleted. This defeats the stated compliance purpose of the table and risks silent, unrecoverable loss of the audit trail."
+    },
+    {
+      "fixtureId": "foreign-keys-01-missing-foreign-key-reference",
+      "domain": "foreign-keys",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "foreign-keys.missing-reference",
+          "severity": "P1",
+          "confidence": "medium",
+          "file": "migration.sql",
+          "lineStart": 4,
+          "lineEnd": 9,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "The webhook_deliveries table defines `repository_id uuid not null` and even builds an index on it (`create index if not exists webhook_deliveries_repository_id_idx on public.webhook_deliveries (repository_id);`), strongly implying it should reference a repositories table, but no foreign key constraint is declared. Without this constraint, rows can be inserted with repository_id values that don't correspond to any real repository, and there is no defined behavior (cascade/restrict/set null) when a repository is deleted, risking orphaned audit/debug data and silent referential inconsistency over time."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 5873,
+      "inputTokens": 2777,
+      "outputTokens": 482,
+      "errorMessage": null,
+      "rawSummary": "The migration creates a new webhook_deliveries table with a repository_id column that is clearly intended to reference a repositories table (it's indexed and named accordingly) but has no foreign key constraint. This allows orphaned records referencing non-existent repositories and no cascade behavior is defined for repository deletion."
+    },
+    {
+      "fixtureId": "migration-safety-01-unsafe-not-null-without-backfill",
+      "domain": "migration-safety",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "migration-safety.unsafe-not-null-addition",
+          "severity": "P0",
+          "confidence": "low",
+          "file": "migration.sql",
+          "lineStart": 3,
+          "lineEnd": 4,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "The migration adds `active_rule_version text not null` to `public.repositories` with no DEFAULT clause and no preceding backfill/UPDATE statement. If the `repositories` table already has any rows, this ALTER TABLE will fail immediately because Postgres cannot populate the new NOT NULL column for existing rows. Even if a default were supplied, applying NOT NULL to an already-populated table in one step forces a full table validation scan and can hold a long-lived lock, risking migration failure or downtime depending on table size."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 7063,
+      "inputTokens": 2663,
+      "outputTokens": 548,
+      "errorMessage": null,
+      "rawSummary": "The migration adds a new NOT NULL column to an existing table without a default value and without any backfill step. On any table that already contains rows, this ALTER TABLE will fail outright (Postgres requires a default or backfill for NOT NULL additions on populated tables), and even if a default were added, doing so in a single non-batched statement can cause a long-lived lock on large tables. This is an unsafe migration pattern."
+    },
+    {
+      "fixtureId": "nullability-01-required-column-nullable",
+      "domain": "nullability",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": false,
+      "rawScore": 0,
+      "normalizedScore": 0.8333333333333334,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "nullability.missing-not-null",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "migration.sql",
+          "lineStart": 6,
+          "lineEnd": 6,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "The invoices table defines `amount_cents integer,` with no NOT NULL constraint and no default. Since this table represents billing invoices, an invoice with a null amount is a nonsensical/invalid business state, yet the schema permits it. Any insert that omits amount_cents will silently succeed with a null amount, leading to inconsistent billing data and downstream calculation errors (e.g., SUM(amount_cents) treating null rows unpredictably)."
+        },
+        {
+          "index": 1,
+          "category": "cascade-delete.unsafe-cascade",
+          "severity": "P2",
+          "confidence": "medium",
+          "file": "migration.sql",
+          "lineStart": 5,
+          "lineEnd": 5,
+          "matchMethod": "unmatched",
+          "classification": "prohibited",
+          "matchedId": null,
+          "evidence": "The foreign key `workspace_id uuid not null references public.workspaces (id) on delete cascade` means that deleting a workspace row will automatically and irreversibly delete all associated invoice records. For financial/billing data, this cascade behavior can cause loss of billing history/audit records that may need to be retained even after a workspace is removed."
+        }
+      ],
+      "failureReasons": [
+        "false positive"
+      ],
+      "latencyMs": 9155,
+      "inputTokens": 2777,
+      "outputTokens": 834,
+      "errorMessage": null,
+      "rawSummary": "The migration creates an invoices table for billing but leaves the amount_cents column nullable despite it being a required financial field, and cascades invoice deletion when a workspace is deleted, which could silently destroy billing/audit records."
+    },
+    {
+      "fixtureId": "query-performance-01-n-plus-one-loop-query",
+      "domain": "query-performance",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "performance.n-plus-one",
+          "severity": "P2",
+          "confidence": "high",
+          "file": "attach-review-status.ts",
+          "lineStart": 6,
+          "lineEnd": 15,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "attachLatestReviewStatus loops over the pullRequests array and issues a separate [unverified quote removed] call for each pull request inside the for loop, rather than fetching all matching review rows in a single batched query (e.g. using an `in` filter on pull_request_id and grouping/deduplicating client-side, or a single SQL query with a window function). This results in N sequential round-trips to the database for N pull requests, which will scale poorly as the input list grows."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 11687,
+      "inputTokens": 2850,
+      "outputTokens": 915,
+      "errorMessage": null,
+      "rawSummary": "The diff adds a single TypeScript function with no schema migration; the sole database-layer concern is a structural N+1 query pattern in attachLatestReviewStatus, which issues one query per input row instead of a single batched query."
+    },
+    {
+      "fixtureId": "race-condition-01-missing-unique-constraint-duplicate-invite",
+      "domain": "race-condition",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "race-condition.missing-unique-constraint",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "migration.sql",
+          "lineStart": 3,
+          "lineEnd": 10,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "The workspace_invitations table has no unique constraint or unique index covering (workspace_id, email) (optionally scoped to status = 'pending'). Two concurrent invite requests for the same email/workspace will both succeed, creating duplicate pending invitation rows. This is a classic race condition: without a database-level uniqueness guarantee, any application-level check-then-insert logic is subject to a TOCTOU race and cannot prevent duplicates."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 8151,
+      "inputTokens": 2843,
+      "outputTokens": 686,
+      "errorMessage": null,
+      "rawSummary": "The new workspace_invitations table lacks a uniqueness constraint on the combination of workspace and invitee email, which allows duplicate pending invitations to be created via concurrent or repeated inserts, and it also has no application-level protection since this is a pure schema migration."
+    },
+    {
+      "fixtureId": "reviewer-lane-01-schema-correct-tenant-table-no-rls",
+      "domain": "reviewer-lane",
+      "tags": [
+        "safe",
+        "false_positive_trap"
+      ],
+      "status": "scored",
+      "passed": false,
+      "rawScore": -2,
+      "normalizedScore": 0.5,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "cascade-delete.unsafe-cascade",
+          "severity": "P2",
+          "confidence": "medium",
+          "file": "migration.sql",
+          "lineStart": 6,
+          "lineEnd": 6,
+          "matchMethod": "unmatched",
+          "classification": "prohibited",
+          "matchedId": null,
+          "evidence": "The saved_filters table defines `created_by uuid not null references public.profiles (id) on delete cascade`. Because saved filters are keyed by workspace (enforced by the `unique (workspace_id, name)` constraint), these presets are effectively shared, workspace-level resources. Cascading the delete from profiles means that if the creating user's profile is ever deleted (e.g. account removal, offboarding), every saved filter they authored is silently deleted for the entire workspace, even though other workspace members may still rely on it and the workspace itself remains intact."
+        }
+      ],
+      "failureReasons": [
+        "false positive"
+      ],
+      "latencyMs": 16303,
+      "inputTokens": 2836,
+      "outputTokens": 1451,
+      "errorMessage": null,
+      "rawSummary": "The migration creates a new saved_filters table with reasonable primary key, uniqueness, and indexing choices, but the ON DELETE CASCADE on created_by risks unintended data loss of shared workspace resources."
+    },
+    {
+      "fixtureId": "safe-migration-01-scoped-uniqueness-and-correct-cascades",
+      "domain": "safe-migration",
+      "tags": [
+        "safe",
+        "false_positive_trap"
+      ],
+      "status": "scored",
+      "passed": false,
+      "rawScore": -4,
+      "normalizedScore": 0.16666666666666666,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "data-integrity",
+          "normalizedCategory": "data-integrity.generic",
+          "severity": "P2",
+          "confidence": "medium",
+          "file": "migration.sql",
+          "lineStart": 11,
+          "lineEnd": 11,
+          "matchMethod": "unmatched",
+          "classification": "prohibited",
+          "matchedId": null,
+          "evidence": "The table defines `unique (workspace_id, name)` and separately has a nullable `revoked_at timestamptz` column intended to mark a key as revoked. Because the unique constraint applies to all rows regardless of revocation state, once a key named e.g. 'ci-deploy' is revoked (revoked_at set) but its row is retained for audit/history, no new key with that same name can ever be created again in that workspace — the constraint is checked against the revoked row just like an active one. This will surface as an unexpected 'duplicate key' failure whenever a workspace tries to reuse a name after rotating/revoking a key."
+        },
+        {
+          "index": 1,
+          "category": "performance",
+          "normalizedCategory": "performance.generic",
+          "severity": "Nit",
+          "confidence": "low",
+          "file": "migration.sql",
+          "lineStart": 8,
+          "lineEnd": 8,
+          "matchMethod": "unmatched",
+          "classification": "prohibited",
+          "matchedId": null,
+          "evidence": "The `created_by` column references `public.profiles (id)` but has no supporting index (unlike `workspace_id`, which gets an explicit index). Foreign key columns without indexes can lead to slow lookups/joins and slow cascade checks on the referenced side."
+        }
+      ],
+      "failureReasons": [
+        "false positive"
+      ],
+      "latencyMs": 25524,
+      "inputTokens": 2901,
+      "outputTokens": 2313,
+      "errorMessage": null,
+      "rawSummary": "The migration creates a new workspace_api_keys table with generally sound foreign keys and indexing, but the uniqueness constraint on (workspace_id, name) does not account for the revoked_at soft-delete-like field, which will produce confusing/blocking behavior once keys are revoked. A secondary, lower-confidence note covers the missing index on the created_by foreign key."
+    },
+    {
+      "fixtureId": "transaction-boundary-01-non-atomic-ownership-transfer",
+      "domain": "transaction-boundary",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "transaction-boundary.non-atomic-multi-step-write",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "transfer-ownership.ts",
+          "lineStart": 4,
+          "lineEnd": 16,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "transferWorkspaceOwnership issues two separate .update() calls against workspace_memberships (demoting fromUserId to \"member\", then promoting toUserId to \"owner\") with no surrounding transaction and no inspection of the returned error/data from either call. The Supabase JS client does not throw on a failed update by default; it returns an object with an error property that this code never checks. If the first update succeeds but the second fails (or throws for an unrelated reason), the workspace is left with no owner. If the first update silently fails (e.g. due to a constraint or network issue) while the second succeeds, the workspace ends up with two owners (fromUserId's role never changed, toUserId now also owner). Either outcome is a data-consistency violation with no rollback path."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 10068,
+      "inputTokens": 2870,
+      "outputTokens": 895,
+      "errorMessage": null,
+      "rawSummary": "The new transferWorkspaceOwnership function performs the ownership transfer as two independent, unguarded Supabase update calls instead of a single atomic transaction, risking inconsistent workspace-owner state if either call fails or the process is interrupted between them."
+    }
+  ],
+  "suite": {
+    "fixturesRun": 10,
+    "fixturesPassed": 7,
+    "fixturesFailed": 0,
+    "totalProducedFindings": 12,
+    "classificationCounts": {
+      "matched_required": 7,
+      "matched_optional": 1,
+      "duplicate": 0,
+      "prohibited": 4,
+      "unsupported_extra": 0,
+      "hallucinated_path": 0,
+      "fabricated_evidence": 0
+    },
+    "precision": 0.6666666666666666,
+    "recall": 1,
+    "p0Recall": 1,
+    "p1Recall": 1,
+    "falsePositiveRate": 0.3333333333333333,
+    "hallucinationRate": 0,
+    "fabricatedEvidenceRate": 0,
+    "speculativeRate": 0,
+    "duplicateRate": 0,
+    "severityAccuracyRate": 1,
+    "categoryAccuracyRate": 1,
+    "confidenceCalibration": {
+      "high": {
+        "total": 5,
+        "correct": 5,
+        "rate": 1
+      },
+      "medium": {
+        "total": 4,
+        "correct": 1,
+        "rate": 0.25
+      },
+      "low": {
+        "total": 3,
+        "correct": 2,
+        "rate": 0.6666666666666666
+      }
+    },
+    "byDomain": {
+      "ambiguous": 1,
+      "cascade-delete": 1,
+      "foreign-keys": 1,
+      "migration-safety": 1,
+      "nullability": 0.8333333333333334,
+      "query-performance": 1,
+      "race-condition": 1,
+      "reviewer-lane": 0.5,
+      "safe-migration": 0.16666666666666666,
+      "transaction-boundary": 1
+    },
+    "byTag": {
+      "ambiguous": 1,
+      "buggy": 0.9761904761904763,
+      "safe": 0.3333333333333333,
+      "false_positive_trap": 0.3333333333333333
+    },
+    "failedFixtures": []
+  },
+  "extraMetrics": {
+    "safeCodeFalsePositiveRate": 1,
+    "ambiguousOverclaimRate": 0,
+    "averageLatencyMs": 10757.6,
+    "totalInputTokens": 28022,
+    "totalOutputTokens": 9187
+  },
+  "fixturesWithProviderOrAdapterFailure": []
+}

@@ -1,0 +1,26 @@
+{
+  "fixture_id": "race-condition-01-missing-unique-constraint-duplicate-invite",
+  "domain": "race-condition",
+  "tags": ["buggy"],
+  "description": "workspace_invitations has no unique constraint on (workspace_id, email), so two concurrent invite requests for the same person race each other at the database level and both succeed, creating duplicate pending invitations instead of one being rejected.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["race-condition.missing-unique-constraint", "race-condition.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "DB-RACECONDITION-001",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [3, 10] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "There is no `unique (workspace_id, email)` constraint (or equivalent partial unique index scoped to pending status) anywhere in this table definition. An application-level 'check for an existing invite, then insert' pattern cannot close this race by itself — two concurrent requests can both pass the check before either insert commits — so only a database-level constraint actually prevents duplicate pending invitations for the same email in the same workspace.",
+        "category": "race-condition.missing-unique-constraint"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A genuine database-layer concurrency defect: the fix is a database constraint, not application code, and the flaw is only visible by noticing what's ABSENT from the table definition (no unique constraint) rather than any single wrong line — the ground truth spans the whole create table statement for that reason."
+}

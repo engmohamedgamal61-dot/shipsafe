@@ -33,6 +33,7 @@
   "exclude": [
     "node_modules",
     "tests/security-benchmarks/**/fixture/**",
-    "tests/code-benchmarks/**/fixture/**"
+    "tests/code-benchmarks/**/fixture/**",
+    "tests/database-benchmarks/**/fixture/**"
   ]
 }

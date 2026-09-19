@@ -1,0 +1,15 @@
+{
+  "fixture_id": "safe-migration-01-scoped-uniqueness-and-correct-cascades",
+  "domain": "safe-migration",
+  "tags": ["safe", "false_positive_trap"],
+  "description": "A well-designed additive migration: workspace_id cascades correctly, created_by uses ON DELETE RESTRICT to preserve keys/audit trail if the creating user is removed, every required column is NOT NULL, the (workspace_id, name) uniqueness is correctly tenant-scoped rather than global, and key_hash has its own necessary global-uniqueness index. Zero findings expected.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": [],
+    "required_findings": [],
+    "optional_findings": []
+  },
+  "explanation": "A direct contrast to this benchmark's buggy fixtures, using the SAME shapes deliberately: `workspace_id ... on delete cascade` (correct here, unlike the audit-log fixture's actor_id), `created_by ... on delete restrict` (correct — the opposite bug from the audit-log fixture, preserving history when a user is removed), a per-tenant `unique (workspace_id, name)` (correct — a good reviewer must not demand this be a bare, globally-unique `name`, which would incorrectly block two different workspaces from both naming a key 'ci-deploy'), and a separate, genuinely-global-scope unique index on key_hash (correct, since a hash must be a reliable global lookup key). A reviewer that over-generalizes from the buggy fixtures — 'cascade is always wrong' or 'uniqueness should always be as broad as possible' — will fail this fixture."
+}

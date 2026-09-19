@@ -1,0 +1,26 @@
+{
+  "fixture_id": "nullability-01-required-column-nullable",
+  "domain": "nullability",
+  "tags": ["buggy"],
+  "description": "invoices.amount_cents is nullable, but an invoice with no amount is a contradiction in terms — every row this table will ever hold needs a real amount, and Postgres will happily accept NULL there today.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["nullability.missing-not-null", "nullability.generic", "data-integrity.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "DB-NULLABILITY-001",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [6, 6] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "amount_cents is the one column an invoice row cannot meaningfully exist without, yet it has no `not null` constraint (unlike status and created_at on the same table). A row can be inserted with amount_cents left NULL, and every downstream sum/total computation over invoices.amount_cents will then silently produce NULL or skip that row instead of failing loudly at write time.",
+        "category": "nullability.missing-not-null"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A one-column schema defect: the table's own other required fields (workspace_id, status, created_at) are all correctly `not null`, making amount_cents's omission a clear, isolated inconsistency rather than a stylistic choice — no application code is needed to see that an invoice's amount is not optional."
+}

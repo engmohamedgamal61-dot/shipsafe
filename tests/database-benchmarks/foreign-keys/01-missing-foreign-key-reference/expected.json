@@ -1,0 +1,26 @@
+{
+  "fixture_id": "foreign-keys-01-missing-foreign-key-reference",
+  "domain": "foreign-keys",
+  "tags": ["buggy"],
+  "description": "webhook_deliveries.repository_id is declared as a plain uuid column with no foreign-key reference to public.repositories, so a deleted repository can leave orphaned delivery rows behind, and Postgres never enforces that repository_id actually names a real row.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["foreign-keys.missing-reference", "foreign-keys.generic", "data-integrity.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "DB-FOREIGNKEYS-001",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [5, 5] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "repository_id uuid not null has no `references public.repositories (id)` clause, unlike every other cross-table column in this codebase's own migrations (see supabase/migrations/0001_init.sql). Without it, Postgres will not reject a repository_id that names a repository which never existed or was since deleted, and there is no ON DELETE behavior to keep the table consistent when a repository is removed.",
+        "category": "foreign-keys.missing-reference"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A pure schema-integrity defect, visible entirely within the 11-line migration: the column name and every sibling migration in this repo signal that repository_id is meant to reference public.repositories, but the `references` clause (and an explicit ON DELETE behavior) is simply missing. No app code or unseen context is needed to confirm this."
+}

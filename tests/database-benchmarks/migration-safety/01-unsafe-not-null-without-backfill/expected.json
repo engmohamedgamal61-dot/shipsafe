@@ -1,0 +1,26 @@
+{
+  "fixture_id": "migration-safety-01-unsafe-not-null-without-backfill",
+  "domain": "migration-safety",
+  "tags": ["buggy"],
+  "description": "This migration adds a NOT NULL column with no default to public.repositories, an existing table that (per this codebase's own 0001_init.sql) already holds rows — Postgres has no value to put in that column for any existing row, so applying this migration against a populated database fails outright.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["migration-safety.unsafe-not-null-addition", "migration-safety.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "DB-MIGRATIONSAFETY-001",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [3, 4] },
+        "severity_range": ["P1", "P0"],
+        "confidence_range": ["high", "high"],
+        "justification": "`add column active_rule_version text not null` supplies no DEFAULT. On any already-populated table, Postgres rejects this outright ('column contains null values') because there is no value to backfill existing rows with — this migration cannot succeed against production data as written. The safe pattern is a DEFAULT (or a nullable column plus a separate backfill-then-constrain step).",
+        "category": "migration-safety.unsafe-not-null-addition"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "An unambiguous, self-contained migration-safety defect: the migration will fail to apply against any table that already has rows, with no application code or unseen context required to know that — repositories is one of this codebase's oldest, clearly-populated tables."
+}
