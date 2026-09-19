@@ -19,9 +19,12 @@ vi.mock("@/lib/supabase/service", () => ({
 
 import {
   claimNextPendingReview,
+  claimWebhookDelivery,
   failReview,
-  recordWebhookDelivery,
+  markWebhookDeliveryCompleted,
+  RepositoryWorkspaceConflictError,
   upsertPullRequest,
+  upsertRepository,
   type UpsertPullRequestInput,
 } from "./writes";
 
@@ -82,35 +85,124 @@ describe("upsertPullRequest — opened_at persistence", () => {
   });
 });
 
-describe("recordWebhookDelivery — GitHub delivery-id idempotency", () => {
+/** A minimal chainable fake matching the subset of the PostgREST query builder `claimWebhookDelivery`/`markWebhookDeliveryCompleted` use. */
+function insertOutcome(error: unknown) {
+  return { insert: () => Promise.resolve({ error }) };
+}
+
+function selectDeliveryOutcome(data: { completed_at: string | null; received_at: string } | null) {
+  return {
+    select: () => ({
+      eq: () => ({
+        maybeSingle: () => Promise.resolve({ data, error: null }),
+      }),
+    }),
+  };
+}
+
+function reclaimOutcome(data: { delivery_id: string } | null) {
+  return {
+    update: () => ({
+      eq: () => ({
+        eq: () => ({
+          is: () => ({
+            select: () => ({
+              maybeSingle: () => Promise.resolve({ data, error: null }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  };
+}
+
+function completeOutcome(error: unknown) {
+  return { update: () => ({ eq: () => Promise.resolve({ error }) }) };
+}
+
+const RECENT = new Date().toISOString();
+const STALE = new Date(Date.now() - 10 * 60 * 1000).toISOString(); // 10 min ago — past the 2-minute claim window
+
+describe("claimWebhookDelivery / markWebhookDeliveryCompleted — GitHub delivery-id idempotency (audit fix HIGH-1)", () => {
   beforeEach(() => {
     fromMock.mockReset();
   });
 
-  it("returns isDuplicate:false the first time a delivery id is seen", async () => {
-    fromMock.mockReturnValue({ insert: () => Promise.resolve({ error: null }) });
+  it("1. a successful delivery is processed once: first insert succeeds -> 'claimed'", async () => {
+    fromMock.mockReturnValueOnce(insertOutcome(null));
 
-    const result = await recordWebhookDelivery("delivery-1", "pull_request");
+    const claim = await claimWebhookDelivery("delivery-1", "pull_request");
 
-    expect(result).toEqual({ isDuplicate: false });
+    expect(claim).toBe("claimed");
   });
 
-  it("returns isDuplicate:true when GitHub retries the same delivery id (unique violation)", async () => {
-    fromMock.mockReturnValue({
-      insert: () => Promise.resolve({ error: { code: "23505", message: "duplicate key value" } }),
-    });
+  it("2. a duplicate of an already-completed delivery is ignored: insert conflicts, row is completed -> 'duplicate'", async () => {
+    fromMock.mockReturnValueOnce(insertOutcome({ code: "23505", message: "duplicate key value" }));
+    fromMock.mockReturnValueOnce(selectDeliveryOutcome({ completed_at: RECENT, received_at: RECENT }));
 
-    const result = await recordWebhookDelivery("delivery-1", "pull_request");
+    const claim = await claimWebhookDelivery("delivery-1", "pull_request");
 
-    expect(result).toEqual({ isDuplicate: true });
+    expect(claim).toBe("duplicate");
+  });
+
+  it("3. a failed first attempt can be retried with the same delivery id once stale: insert conflicts, row never completed and is past the claim window -> reclaimed as 'claimed'", async () => {
+    fromMock.mockReturnValueOnce(insertOutcome({ code: "23505", message: "duplicate key value" }));
+    fromMock.mockReturnValueOnce(selectDeliveryOutcome({ completed_at: null, received_at: STALE }));
+    fromMock.mockReturnValueOnce(reclaimOutcome({ delivery_id: "delivery-1" }));
+
+    const claim = await claimWebhookDelivery("delivery-1", "pull_request");
+
+    expect(claim).toBe("claimed");
+  });
+
+  it("4. after a retry succeeds and completes, a further duplicate delivery is ignored", async () => {
+    // The reclaim from scenario 3.
+    fromMock.mockReturnValueOnce(insertOutcome({ code: "23505", message: "duplicate key value" }));
+    fromMock.mockReturnValueOnce(selectDeliveryOutcome({ completed_at: null, received_at: STALE }));
+    fromMock.mockReturnValueOnce(reclaimOutcome({ delivery_id: "delivery-1" }));
+    expect(await claimWebhookDelivery("delivery-1", "pull_request")).toBe("claimed");
+
+    fromMock.mockReturnValueOnce(completeOutcome(null));
+    await markWebhookDeliveryCompleted("delivery-1");
+
+    // A later duplicate now finds a completed row.
+    fromMock.mockReturnValueOnce(insertOutcome({ code: "23505", message: "duplicate key value" }));
+    fromMock.mockReturnValueOnce(selectDeliveryOutcome({ completed_at: RECENT, received_at: STALE }));
+    expect(await claimWebhookDelivery("delivery-1", "pull_request")).toBe("duplicate");
+  });
+
+  it("5. concurrent duplicate delivery: a second delivery racing the first (row exists, uncompleted, still within the claim window) is treated as in-progress, not reprocessed", async () => {
+    // The second of two near-simultaneous deliveries loses the insert race
+    // against the first (which is still actively processing, hence the
+    // very recent received_at with no completed_at yet).
+    fromMock.mockReturnValueOnce(insertOutcome({ code: "23505", message: "duplicate key value" }));
+    fromMock.mockReturnValueOnce(selectDeliveryOutcome({ completed_at: null, received_at: RECENT }));
+
+    const claim = await claimWebhookDelivery("delivery-1", "pull_request");
+
+    expect(claim).toBe("in_progress");
+  });
+
+  it("also treats a lost reclaim race (another caller already reclaimed/completed it) as in-progress rather than double-processing", async () => {
+    fromMock.mockReturnValueOnce(insertOutcome({ code: "23505", message: "duplicate key value" }));
+    fromMock.mockReturnValueOnce(selectDeliveryOutcome({ completed_at: null, received_at: STALE }));
+    fromMock.mockReturnValueOnce(reclaimOutcome(null)); // CAS matched nothing — someone else already reclaimed it.
+
+    const claim = await claimWebhookDelivery("delivery-1", "pull_request");
+
+    expect(claim).toBe("in_progress");
   });
 
   it("throws on a non-conflict database error instead of silently treating it as a duplicate", async () => {
-    fromMock.mockReturnValue({
-      insert: () => Promise.resolve({ error: { code: "500", message: "connection reset" } }),
-    });
+    fromMock.mockReturnValueOnce(insertOutcome({ code: "500", message: "connection reset" }));
 
-    await expect(recordWebhookDelivery("delivery-1", "pull_request")).rejects.toThrow(/connection reset/);
+    await expect(claimWebhookDelivery("delivery-1", "pull_request")).rejects.toThrow(/connection reset/);
+  });
+
+  it("markWebhookDeliveryCompleted logs rather than throws when the update fails", async () => {
+    fromMock.mockReturnValueOnce(completeOutcome({ message: "db down" }));
+
+    await expect(markWebhookDeliveryCompleted("delivery-1")).resolves.toBeUndefined();
   });
 });
 
@@ -227,5 +319,120 @@ describe("claimNextPendingReview — atomic queue claim", () => {
     expect(selectChain.or).toHaveBeenCalledWith(expect.stringContaining("status.eq.pending"));
     expect(selectChain.or).toHaveBeenCalledWith(expect.stringContaining("status.eq.running"));
     expect(selectChain.or).toHaveBeenCalledWith(expect.stringContaining("started_at.lt."));
+  });
+});
+
+function repoLookupOutcome(data: { id: string; workspace_id: string; full_name: string } | null) {
+  return {
+    select: () => ({
+      eq: () => ({
+        eq: () => ({
+          maybeSingle: () => Promise.resolve({ data, error: null }),
+        }),
+      }),
+    }),
+  };
+}
+
+function repoUpdateOutcome(result: { data: { id: string } | null; error: unknown }) {
+  const updateMock = vi.fn();
+  return {
+    update: (payload: unknown) => {
+      updateMock(payload);
+      return { eq: () => ({ select: () => ({ single: () => Promise.resolve(result) }) }) };
+    },
+    updateMock,
+  };
+}
+
+function repoInsertOutcome(result: { data: { id: string } | null; error: unknown }) {
+  const insertMock = vi.fn();
+  return {
+    insert: (payload: unknown) => {
+      insertMock(payload);
+      return { select: () => ({ single: () => Promise.resolve(result) }) };
+    },
+    insertMock,
+  };
+}
+
+function repoRef(overrides: Partial<{ id: number; name: string; full_name: string; default_branch: string }> = {}) {
+  return { id: 555, name: "payments-service", full_name: "acme/payments-service", ...overrides };
+}
+
+describe("upsertRepository — cross-tenant reparenting protection (audit fix HIGH-3)", () => {
+  beforeEach(() => {
+    fromMock.mockReset();
+  });
+
+  it("1. same-workspace resync succeeds", async () => {
+    fromMock.mockReturnValueOnce(repoLookupOutcome({ id: "repo-1", workspace_id: "ws-a", full_name: "acme/payments-service" }));
+    const updateOutcome = repoUpdateOutcome({ data: { id: "repo-1" }, error: null });
+    fromMock.mockReturnValueOnce(updateOutcome);
+
+    const result = await upsertRepository(repoRef(), "ws-a", "install-row-1");
+
+    expect(result).toEqual({ id: "repo-1" });
+  });
+
+  it("2. metadata updates within the same workspace succeed, and the update payload never includes workspace_id", async () => {
+    fromMock.mockReturnValueOnce(repoLookupOutcome({ id: "repo-1", workspace_id: "ws-a", full_name: "acme/old-name" }));
+    const updateOutcome = repoUpdateOutcome({ data: { id: "repo-1" }, error: null });
+    fromMock.mockReturnValueOnce(updateOutcome);
+
+    await upsertRepository(repoRef({ full_name: "acme/payments-service", default_branch: "develop" }), "ws-a", "install-row-1");
+
+    expect(updateOutcome.updateMock).toHaveBeenCalledWith(
+      expect.objectContaining({ full_name: "acme/payments-service", default_branch: "develop", github_installation_id: "install-row-1" }),
+    );
+    const [payload] = updateOutcome.updateMock.mock.calls[0];
+    expect(payload).not.toHaveProperty("workspace_id");
+  });
+
+  it("3. a different workspace cannot claim an existing external_repository_id: throws RepositoryWorkspaceConflictError", async () => {
+    fromMock.mockReturnValueOnce(repoLookupOutcome({ id: "repo-1", workspace_id: "ws-a", full_name: "acme/payments-service" }));
+
+    await expect(upsertRepository(repoRef(), "ws-b", "install-row-2")).rejects.toThrow(RepositoryWorkspaceConflictError);
+  });
+
+  it("4. existing review/history ownership remains unchanged: a rejected cross-workspace claim performs zero writes", async () => {
+    fromMock.mockReturnValueOnce(repoLookupOutcome({ id: "repo-1", workspace_id: "ws-a", full_name: "acme/payments-service" }));
+
+    await expect(upsertRepository(repoRef(), "ws-b", "install-row-2")).rejects.toThrow();
+
+    // Only the read-only lookup ran — no update/insert call was ever made.
+    expect(fromMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates a fresh row for a genuinely new external_repository_id", async () => {
+    fromMock.mockReturnValueOnce(repoLookupOutcome(null));
+    const insertOutcome = repoInsertOutcome({ data: { id: "repo-new" }, error: null });
+    fromMock.mockReturnValueOnce(insertOutcome);
+
+    const result = await upsertRepository(repoRef(), "ws-a", "install-row-1");
+
+    expect(result).toEqual({ id: "repo-new" });
+    expect(insertOutcome.insertMock).toHaveBeenCalledWith(expect.objectContaining({ workspace_id: "ws-a" }));
+  });
+
+  it("a concurrent insert race for the same new repo resolves via recursion: the loser re-checks and rejects if the winner belongs to a different workspace", async () => {
+    // This call's own insert loses the race.
+    fromMock.mockReturnValueOnce(repoLookupOutcome(null));
+    fromMock.mockReturnValueOnce(repoInsertOutcome({ data: null, error: { code: "23505", message: "duplicate key" } }));
+    // Recursive re-check: the winner's row belongs to a different workspace.
+    fromMock.mockReturnValueOnce(repoLookupOutcome({ id: "repo-1", workspace_id: "ws-a", full_name: "acme/payments-service" }));
+
+    await expect(upsertRepository(repoRef(), "ws-b", "install-row-2")).rejects.toThrow(RepositoryWorkspaceConflictError);
+  });
+
+  it("a concurrent insert race for the same new repo resolves via recursion: the loser re-checks and succeeds if the winner used the same workspace", async () => {
+    fromMock.mockReturnValueOnce(repoLookupOutcome(null));
+    fromMock.mockReturnValueOnce(repoInsertOutcome({ data: null, error: { code: "23505", message: "duplicate key" } }));
+    fromMock.mockReturnValueOnce(repoLookupOutcome({ id: "repo-1", workspace_id: "ws-a", full_name: "acme/payments-service" }));
+    fromMock.mockReturnValueOnce(repoUpdateOutcome({ data: { id: "repo-1" }, error: null }));
+
+    const result = await upsertRepository(repoRef(), "ws-a", "install-row-1");
+
+    expect(result).toEqual({ id: "repo-1" });
   });
 });

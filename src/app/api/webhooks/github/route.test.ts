@@ -6,9 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * and the end-to-end "responds fast, 202, without waiting on anything
  * async" behavior a real GitHub delivery actually observes.
  */
-const { handlePullRequestEventMock, recordWebhookDeliveryMock } = vi.hoisted(() => ({
+const { handlePullRequestEventMock, claimWebhookDeliveryMock, markWebhookDeliveryCompletedMock } = vi.hoisted(() => ({
   handlePullRequestEventMock: vi.fn().mockResolvedValue(undefined),
-  recordWebhookDeliveryMock: vi.fn(),
+  claimWebhookDeliveryMock: vi.fn(),
+  markWebhookDeliveryCompletedMock: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -30,7 +31,8 @@ vi.mock("@/server/github/ingest", () => ({
 }));
 
 vi.mock("@/server/github/writes", () => ({
-  recordWebhookDelivery: recordWebhookDeliveryMock,
+  claimWebhookDelivery: claimWebhookDeliveryMock,
+  markWebhookDeliveryCompleted: markWebhookDeliveryCompletedMock,
 }));
 
 const { POST } = await import("./route");
@@ -72,11 +74,14 @@ function pullRequestWebhookRequest(deliveryId: string) {
 describe("POST /api/webhooks/github — pull_request handling", () => {
   beforeEach(() => {
     handlePullRequestEventMock.mockClear();
-    recordWebhookDeliveryMock.mockReset();
+    handlePullRequestEventMock.mockResolvedValue(undefined);
+    claimWebhookDeliveryMock.mockReset();
+    markWebhookDeliveryCompletedMock.mockClear();
+    markWebhookDeliveryCompletedMock.mockResolvedValue(undefined);
   });
 
-  it("responds 202 quickly without waiting for anything beyond the fast enqueue path", async () => {
-    recordWebhookDeliveryMock.mockResolvedValue({ isDuplicate: false });
+  it("responds 202 quickly without waiting for anything beyond the fast enqueue path, then marks the delivery completed", async () => {
+    claimWebhookDeliveryMock.mockResolvedValue("claimed");
 
     const startedAt = Date.now();
     const response = await POST(pullRequestWebhookRequest("delivery-1"));
@@ -87,15 +92,11 @@ describe("POST /api/webhooks/github — pull_request handling", () => {
     expect(body).toMatchObject({ ok: true, queued: true });
     expect(elapsedMs).toBeLessThan(1000);
     expect(handlePullRequestEventMock).toHaveBeenCalledTimes(1);
+    expect(markWebhookDeliveryCompletedMock).toHaveBeenCalledWith("delivery-1");
   });
 
-  it("does not re-run ingestion for a GitHub-retried delivery with the same delivery id", async () => {
-    // Real behavior: the first insert into github_webhook_deliveries
-    // succeeds, a second insert of the same delivery_id is a unique
-    // violation — recordWebhookDelivery reports that as isDuplicate.
-    recordWebhookDeliveryMock
-      .mockResolvedValueOnce({ isDuplicate: false })
-      .mockResolvedValueOnce({ isDuplicate: true });
+  it("does not re-run ingestion for a GitHub-retried delivery already completed successfully", async () => {
+    claimWebhookDeliveryMock.mockResolvedValueOnce("claimed").mockResolvedValueOnce("duplicate");
 
     const first = await POST(pullRequestWebhookRequest("delivery-1"));
     const second = await POST(pullRequestWebhookRequest("delivery-1"));
@@ -109,8 +110,44 @@ describe("POST /api/webhooks/github — pull_request handling", () => {
     expect(handlePullRequestEventMock).toHaveBeenCalledTimes(1);
   });
 
+  it("ignores a concurrent/in-progress duplicate delivery without reprocessing", async () => {
+    claimWebhookDeliveryMock.mockResolvedValueOnce("in_progress");
+
+    const response = await POST(pullRequestWebhookRequest("delivery-1"));
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({ ok: true, duplicate: true });
+    expect(handlePullRequestEventMock).not.toHaveBeenCalled();
+  });
+
+  it("audit fix HIGH-1: a failed first attempt never marks the delivery completed, so it stays retryable under the same delivery id", async () => {
+    claimWebhookDeliveryMock.mockResolvedValue("claimed");
+    handlePullRequestEventMock.mockRejectedValueOnce(new Error("transient GitHub API 5xx"));
+
+    const response = await POST(pullRequestWebhookRequest("delivery-1"));
+
+    expect(response.status).toBe(500);
+    expect(markWebhookDeliveryCompletedMock).not.toHaveBeenCalled();
+  });
+
+  it("audit fix HIGH-1: a retry that reaches 'claimed' again (the prior attempt never completed) reprocesses and then completes", async () => {
+    claimWebhookDeliveryMock.mockResolvedValueOnce("claimed");
+    handlePullRequestEventMock.mockRejectedValueOnce(new Error("transient failure"));
+    const failedAttempt = await POST(pullRequestWebhookRequest("delivery-1"));
+    expect(failedAttempt.status).toBe(500);
+
+    claimWebhookDeliveryMock.mockResolvedValueOnce("claimed");
+    const retry = await POST(pullRequestWebhookRequest("delivery-1"));
+
+    expect(retry.status).toBe(202);
+    expect(handlePullRequestEventMock).toHaveBeenCalledTimes(2);
+    expect(markWebhookDeliveryCompletedMock).toHaveBeenCalledTimes(1);
+    expect(markWebhookDeliveryCompletedMock).toHaveBeenCalledWith("delivery-1");
+  });
+
   it("processes two different delivery ids for the same underlying event as independent, non-duplicate deliveries", async () => {
-    recordWebhookDeliveryMock.mockResolvedValue({ isDuplicate: false });
+    claimWebhookDeliveryMock.mockResolvedValue("claimed");
 
     await POST(pullRequestWebhookRequest("delivery-1"));
     await POST(pullRequestWebhookRequest("delivery-2"));

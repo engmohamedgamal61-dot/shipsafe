@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { logger } from "@/lib/logger";
 import { createServiceSupabaseClient } from "@/lib/supabase/service";
 import { attachReviewIds, type OrchestratorResult } from "@/server/review-engine/orchestrator";
 import type { ChangedFile } from "@/domain/types";
@@ -86,40 +87,100 @@ export async function setInstallationSuspended(
     .eq("installation_id", installationId);
 }
 
+/**
+ * Thrown by `upsertRepository` when the external (GitHub) repository id
+ * already belongs to a DIFFERENT workspace than the one requesting the
+ * write — audit fix for v1 HIGH-3. Deliberately reveals nothing about
+ * the other workspace (not its id, name, or member count) beyond the
+ * fact that a conflict exists; the caller already knows the external
+ * repository id and full_name it was trying to connect.
+ */
+export class RepositoryWorkspaceConflictError extends Error {
+  constructor(fullName: string) {
+    super(`Repository ${fullName} is already connected to a different workspace and cannot be reparented automatically.`);
+    this.name = "RepositoryWorkspaceConflictError";
+  }
+}
+
+/**
+ * Connects a GitHub repository to a workspace, or refreshes its metadata
+ * if already connected. Audit fix for v1 HIGH-3: an existing row's
+ * `workspace_id` is now NEVER included in an UPDATE payload — a repo
+ * already connected to another workspace throws
+ * `RepositoryWorkspaceConflictError` instead of silently reparenting the
+ * row (and its full review/findings history) to the caller's workspace.
+ * Explicit reconnection/transfer is intentionally not implemented here.
+ *
+ * Race-safe the same way `upsertInstallation` is: two concurrent calls
+ * for the SAME NEW external repository id (from possibly different
+ * workspaces) both attempt an INSERT; the unique constraint on
+ * `(provider, external_repository_id)` lets exactly one win, and the
+ * loser re-checks by recursing — which then either performs a normal
+ * same-workspace update or correctly throws the conflict error.
+ */
 export async function upsertRepository(
   repo: GithubRepositoryRef & { default_branch?: string },
   workspaceId: string,
   githubInstallationRowId: string,
 ): Promise<{ id: string }> {
   const supabase = createServiceSupabaseClient();
+  const externalRepositoryId = String(repo.id);
 
-  // `installation`/`installation_repositories` webhooks only send the
-  // abbreviated repo ref (no `default_branch`) — omit the column rather
-  // than write a wrong value; the table's `default 'main'` covers a
-  // fresh insert, and an existing row's real value is left untouched on
-  // conflict.
-  const { data, error } = await supabase
-    .from("repositories")
-    .upsert(
-      {
-        workspace_id: workspaceId,
-        provider: "github",
-        external_repository_id: String(repo.id),
+  const existing = await getRepositoryByExternalId(externalRepositoryId);
+
+  if (existing) {
+    if (existing.workspaceId !== workspaceId) {
+      throw new RepositoryWorkspaceConflictError(repo.full_name);
+    }
+
+    // Same-workspace resync: refresh metadata only. `workspace_id` is
+    // deliberately never part of this payload — it's already confirmed
+    // unchanged above, and never reachable via any other write path here.
+    const { data, error } = await supabase
+      .from("repositories")
+      .update({
         github_installation_id: githubInstallationRowId,
         name: repo.name,
         full_name: repo.full_name,
+        // `installation`/`installation_repositories` webhooks only send
+        // the abbreviated repo ref (no `default_branch`) — omit the
+        // column rather than write a wrong value over the real one.
         ...(repo.default_branch ? { default_branch: repo.default_branch } : {}),
-      },
-      { onConflict: "provider,external_repository_id" },
-    )
+      })
+      .eq("id", existing.id)
+      .select("id")
+      .single();
+
+    if (error || !data) {
+      throw new Error(`Failed to update repository ${repo.full_name}: ${error?.message}`);
+    }
+    return { id: data.id };
+  }
+
+  const { data, error } = await supabase
+    .from("repositories")
+    .insert({
+      workspace_id: workspaceId,
+      provider: "github",
+      external_repository_id: externalRepositoryId,
+      github_installation_id: githubInstallationRowId,
+      name: repo.name,
+      full_name: repo.full_name,
+      ...(repo.default_branch ? { default_branch: repo.default_branch } : {}),
+    })
     .select("id")
     .single();
 
-  if (error || !data) {
-    throw new Error(`Failed to upsert repository ${repo.full_name}: ${error?.message}`);
+  if (!error && data) return { id: data.id };
+
+  if (error?.code === UNIQUE_VIOLATION) {
+    // Lost a race with a concurrent insert for this same external
+    // repository id — recurse to pick up what won (and correctly
+    // reject if it belongs to a different workspace).
+    return upsertRepository(repo, workspaceId, githubInstallationRowId);
   }
 
-  return { id: data.id };
+  throw new Error(`Failed to upsert repository ${repo.full_name}: ${error?.message}`);
 }
 
 export async function removeRepositoryByExternalId(externalRepositoryId: string): Promise<void> {
@@ -385,26 +446,102 @@ export async function failReview(reviewId: string, reason: string): Promise<void
 }
 
 /**
- * Idempotency guard on GitHub's own `X-GitHub-Delivery` header. Returns
- * `isDuplicate: true` without throwing when this exact delivery has
- * already been recorded (a `23505` unique violation on `delivery_id`) —
- * GitHub retries a delivery it didn't get a fast-enough 2xx for, and this
- * is what lets the Route Handler tell "GitHub retried the same delivery"
- * apart from "a genuinely new event" before doing any real work.
+ * How long a delivery can sit "claimed but not completed" before it's
+ * assumed to belong to a request that crashed or was killed mid-
+ * processing — rather than one still genuinely in flight — and is safe
+ * to reclaim. Mirrors `claimNextPendingReview`'s `STALE_RUNNING_TIMEOUT_MS`,
+ * scaled down: a webhook Route Handler has to finish within one HTTP
+ * request's lifetime (seconds), not minutes.
  */
-export async function recordWebhookDelivery(
-  deliveryId: string,
-  eventName: string,
-): Promise<{ isDuplicate: boolean }> {
+const STALE_WEBHOOK_CLAIM_MS = 2 * 60 * 1000;
+
+export type WebhookDeliveryClaim = "claimed" | "duplicate" | "in_progress";
+
+/**
+ * Idempotency guard on GitHub's own `X-GitHub-Delivery` header —
+ * audit fix for v1 HIGH-1. A delivery id is only PERMANENTLY
+ * deduplicated once `markWebhookDeliveryCompleted` is called for it; a
+ * delivery that was claimed but never completed (its handler threw, or
+ * the process crashed) is retryable by a later identical delivery,
+ * not silently dropped as before.
+ *
+ * Returns:
+ * - `"claimed"` — safe to process now (a genuinely new delivery id, or a
+ *   stale, never-completed prior claim being retried).
+ * - `"duplicate"` — this delivery already completed successfully; never
+ *   reprocess it.
+ * - `"in_progress"` — another call for this exact delivery id is still
+ *   within a plausible in-flight window; skip rather than process the
+ *   same delivery concurrently.
+ */
+export async function claimWebhookDelivery(deliveryId: string, eventName: string): Promise<WebhookDeliveryClaim> {
+  const supabase = createServiceSupabaseClient();
+  const now = new Date();
+
+  const { error: insertError } = await supabase
+    .from("github_webhook_deliveries")
+    .insert({ delivery_id: deliveryId, event: eventName, received_at: now.toISOString() });
+
+  if (!insertError) return "claimed";
+  if (insertError.code !== UNIQUE_VIOLATION) {
+    throw new Error(`Failed to record webhook delivery ${deliveryId}: ${insertError.message}`);
+  }
+
+  // A row for this delivery id already exists. Completed -> a genuine
+  // duplicate, always skip.
+  const { data: existing } = await supabase
+    .from("github_webhook_deliveries")
+    .select("completed_at, received_at")
+    .eq("delivery_id", deliveryId)
+    .maybeSingle();
+
+  if (!existing || existing.completed_at) return "duplicate";
+
+  const staleCutoffMs = now.getTime() - STALE_WEBHOOK_CLAIM_MS;
+  if (new Date(existing.received_at).getTime() >= staleCutoffMs) {
+    // Still within the window a genuinely concurrent, still-running
+    // attempt could own this delivery — don't process it a second time
+    // in parallel.
+    return "in_progress";
+  }
+
+  // Stale: the previous claim never completed within a reasonable
+  // window (its handler threw, or the process was killed). Race-safe
+  // reclaim: the UPDATE's WHERE clause only matches if `received_at`
+  // still equals what we just read — if another caller already
+  // reclaimed or completed this delivery since, this UPDATE matches
+  // nothing and we correctly report "in_progress" instead of
+  // processing concurrently with that other caller.
+  const { data: reclaimed } = await supabase
+    .from("github_webhook_deliveries")
+    .update({ received_at: now.toISOString() })
+    .eq("delivery_id", deliveryId)
+    .eq("received_at", existing.received_at)
+    .is("completed_at", null)
+    .select("delivery_id")
+    .maybeSingle();
+
+  return reclaimed ? "claimed" : "in_progress";
+}
+
+/**
+ * Marks a claimed delivery as permanently completed, so any future
+ * identical delivery id is reported as `"duplicate"` rather than
+ * reprocessed. Deliberately best-effort (logs, never throws): a hiccup
+ * writing this bookkeeping row must never turn an otherwise-successful
+ * webhook response into a reported failure — see the caller in
+ * `src/app/api/webhooks/github/route.ts`.
+ */
+export async function markWebhookDeliveryCompleted(deliveryId: string): Promise<void> {
   const supabase = createServiceSupabaseClient();
   const { error } = await supabase
     .from("github_webhook_deliveries")
-    .insert({ delivery_id: deliveryId, event: eventName });
+    .update({ completed_at: new Date().toISOString() })
+    .eq("delivery_id", deliveryId);
 
-  if (!error) return { isDuplicate: false };
-  if (error.code === UNIQUE_VIOLATION) return { isDuplicate: true };
-
-  throw new Error(`Failed to record webhook delivery ${deliveryId}: ${error.message}`);
+  if (error) {
+    logger.error("failed to mark webhook delivery completed", { deliveryId, error: error.message });
+  }
 }
 
 export interface QueuedPullRequest {

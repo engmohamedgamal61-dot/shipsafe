@@ -8,7 +8,7 @@ import {
   handleInstallationRepositoriesEvent,
   handlePullRequestEvent,
 } from "@/server/github/ingest";
-import { recordWebhookDelivery } from "@/server/github/writes";
+import { claimWebhookDelivery, markWebhookDeliveryCompleted } from "@/server/github/writes";
 import {
   githubInstallationRepositoriesWebhookBodySchema,
   githubInstallationWebhookBodySchema,
@@ -54,16 +54,24 @@ export async function POST(request: Request) {
   // `findOrCreatePendingReview`'s (pullRequestId, headSha) dedup, which
   // guards against duplicate *reviews* however the duplicate delivery
   // arrived (including a manual re-delivery, which gets a fresh delivery id).
+  //
+  // Audit fix for v1 HIGH-1: the delivery is only marked PERMANENTLY
+  // deduplicated after the handler below succeeds
+  // (`markWebhookDeliveryCompleted`), not at claim time — a delivery
+  // whose processing throws stays retryable under the same delivery id
+  // rather than being silently dropped on GitHub's redelivery.
   const deliveryId = request.headers.get("x-github-delivery");
   if (deliveryId) {
-    const { isDuplicate } = await recordWebhookDelivery(deliveryId, eventName ?? "unknown");
-    if (isDuplicate) {
-      logger.info("ignoring duplicate github webhook delivery", { deliveryId, eventName });
+    const claim = await claimWebhookDelivery(deliveryId, eventName ?? "unknown");
+    if (claim !== "claimed") {
+      logger.info("ignoring duplicate or in-progress github webhook delivery", { deliveryId, eventName, claim });
       return NextResponse.json({ ok: true, duplicate: true });
     }
   }
 
   try {
+    let response = NextResponse.json({ ok: true });
+
     switch (eventName) {
       case "ping":
         break;
@@ -87,22 +95,26 @@ export async function POST(request: Request) {
         // inline — see `handlePullRequestEvent`'s own doc comment and
         // `processPendingReviews` in src/server/github/ingest.ts.
         await handlePullRequestEvent(parsed.data);
-        return NextResponse.json({ ok: true, queued: true }, { status: 202 });
+        response = NextResponse.json({ ok: true, queued: true }, { status: 202 });
+        break;
       }
       default:
         logger.info("ignoring unhandled github webhook event", { eventName });
     }
+
+    if (deliveryId) await markWebhookDeliveryCompleted(deliveryId);
+    return response;
   } catch (error) {
-    // Return 500 so GitHub retries delivery — every write above is
-    // upsert/idempotent-by-natural-key, so a retried delivery is safe.
+    // Return 500 so GitHub retries delivery with the SAME delivery id —
+    // `claimWebhookDelivery` never marked it completed, so that retry
+    // will be reprocessed rather than dropped. Every write above is also
+    // upsert/idempotent-by-natural-key, so a retry is safe either way.
     logger.error("github webhook handler failed", {
       eventName,
       error: error instanceof Error ? error.message : String(error),
     });
     return NextResponse.json({ error: "Webhook processing failed" }, { status: 500 });
   }
-
-  return NextResponse.json({ ok: true });
 }
 
 /**

@@ -149,16 +149,19 @@ export interface Database {
           delivery_id: string;
           event: string;
           received_at: string;
+          completed_at: string | null;
         };
         Insert: {
           delivery_id: string;
           event: string;
           received_at?: string;
+          completed_at?: string | null;
         };
         Update: Partial<{
           delivery_id: string;
           event: string;
           received_at: string;
+          completed_at: string | null;
         }>;
         Relationships: [];
       };

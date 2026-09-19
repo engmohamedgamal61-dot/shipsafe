@@ -13,6 +13,89 @@ const GITHUB_API_BASE = "https://api.github.com";
 const MAX_PAGES = 5; // 500 items at 100/page — generous for a self-hosted MVP without a real pagination UI yet.
 
 /**
+ * Bounded retry/backoff for transient GitHub API failures — audit fix
+ * for v1 HIGH-2. Applies to every GitHub REST call in this module
+ * (`githubRequest`, used by `fetchPullRequestDiff`/
+ * `fetchPullRequestFiles`/`listInstallationRepositories`, and
+ * `getInstallationDetails`'s own fetch).
+ *
+ * Retries: HTTP 429, any 5xx, and a thrown network error (`fetch`
+ * throws for a connection failure — there is no request-level timeout
+ * configured anywhere in this module today, so there is nothing
+ * timeout-specific to add retry handling for beyond that). Never
+ * retries any other 4xx — those are terminal (bad auth, not found,
+ * validation failure) and retrying would only repeat the same failure.
+ *
+ * `MAX_ATTEMPTS` total attempts (the first try plus up to
+ * `MAX_ATTEMPTS - 1` retries), exponential backoff from
+ * `BASE_BACKOFF_MS`, capped at `MAX_BACKOFF_MS`, honoring a numeric or
+ * HTTP-date `Retry-After` header when GitHub sends one and it implies a
+ * longer wait than the exponential schedule would.
+ */
+const MAX_ATTEMPTS = 4;
+const BASE_BACKOFF_MS = 300;
+const MAX_BACKOFF_MS = 8_000;
+
+function isRetryableStatus(status: number): boolean {
+  return status === 429 || (status >= 500 && status < 600);
+}
+
+/** `null` when there's no usable `Retry-After` (absent, or a value that already elapsed) — the exponential schedule applies instead. */
+function retryAfterDelayMs(header: string | null): number | null {
+  if (!header) return null;
+
+  const seconds = Number(header);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.min(seconds * 1000, MAX_BACKOFF_MS);
+
+  const dateMs = Date.parse(header);
+  if (!Number.isNaN(dateMs)) {
+    const delta = dateMs - Date.now();
+    if (delta > 0) return Math.min(delta, MAX_BACKOFF_MS);
+  }
+
+  return null;
+}
+
+function backoffDelayMs(attempt: number, retryAfterHeader: string | null): number {
+  const exponential = Math.min(BASE_BACKOFF_MS * 2 ** (attempt - 1), MAX_BACKOFF_MS);
+  const fromRetryAfter = retryAfterDelayMs(retryAfterHeader);
+  return fromRetryAfter !== null ? Math.max(exponential, fromRetryAfter) : exponential;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Drop-in replacement for `fetch` with bounded retry/backoff — always
+ * returns a `Response` (never throws for an HTTP error status; the
+ * caller's existing `!response.ok` handling is unchanged) except when
+ * every attempt failed at the network level, in which case the last
+ * network error is rethrown.
+ */
+async function fetchWithRetry(url: string, init: RequestInit): Promise<Response> {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let response: Response;
+    try {
+      response = await fetch(url, init);
+    } catch (error) {
+      if (attempt === MAX_ATTEMPTS) throw error;
+      await sleep(backoffDelayMs(attempt, null));
+      continue;
+    }
+
+    if (response.ok || !isRetryableStatus(response.status) || attempt === MAX_ATTEMPTS) {
+      return response;
+    }
+
+    await sleep(backoffDelayMs(attempt, response.headers.get("retry-after")));
+  }
+
+  // Unreachable — the loop above always returns or throws by its final iteration.
+  throw new Error("fetchWithRetry: exhausted retries without a response");
+}
+
+/**
  * `@octokit/auth-app`'s returned auth function signs the App-level JWT
  * and exchanges it for an installation access token, caching the token
  * for its ~1 hour lifetime internally as long as the SAME auth instance
@@ -47,7 +130,7 @@ export async function getInstallationDetails(
   const auth = getAppAuth();
   const { token } = await auth({ type: "app" });
 
-  const response = await fetch(`${GITHUB_API_BASE}/app/installations/${installationId}`, {
+  const response = await fetchWithRetry(`${GITHUB_API_BASE}/app/installations/${installationId}`, {
     headers: {
       Authorization: `Bearer ${token}`,
       Accept: "application/vnd.github+json",
@@ -75,7 +158,7 @@ async function githubRequest(
   token: string,
   accept = "application/vnd.github+json",
 ): Promise<Response> {
-  const response = await fetch(`${GITHUB_API_BASE}${path}`, {
+  const response = await fetchWithRetry(`${GITHUB_API_BASE}${path}`, {
     headers: {
       Authorization: `token ${token}`,
       Accept: accept,
