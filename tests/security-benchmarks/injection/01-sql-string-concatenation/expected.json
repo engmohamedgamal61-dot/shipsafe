@@ -1,0 +1,27 @@
+{
+  "fixture_id": "injection-01-sql-string-concatenation",
+  "domain": "injection",
+  "tags": ["vulnerable"],
+  "spec_ref": "3.3",
+  "description": "A repository search function builds a SQL string via template-literal interpolation of an external query parameter and executes it directly.",
+  "files": ["search-repos.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["injection.sql"],
+    "prohibited_categories": ["access-control.idor", "secrets-crypto.hardcoded-secret"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "SEC-INJECTION-001",
+        "category": "injection.sql",
+        "files": ["search-repos.ts"],
+        "line_ranges": { "search-repos.ts": [9, 10] },
+        "severity_range": ["P0", "P0"],
+        "confidence_range": ["high", "high"],
+        "exploit_preconditions": "Any caller of searchRepositoriesByName with a value they control for fullNameQuery — e.g. `' OR '1'='1` or a UNION-based payload — no parameterization or escaping happens anywhere before the string reaches pool.query().",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "The textbook case §3.3 documents directly: a template literal interpolated into a raw SQL string, executed via a real driver's .query(sql) with no placeholder. High confidence is appropriate here — the sink (pool.query with a raw string) and the source (a function parameter with no validation) are both fully visible in a four-line function, no missing context anywhere."
+}

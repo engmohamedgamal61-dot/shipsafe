@@ -1,0 +1,26 @@
+{
+  "fixture_id": "database-01-rls-never-enabled-on-tenant-table",
+  "domain": "database",
+  "tags": ["vulnerable"],
+  "spec_ref": "3.10",
+  "description": "A migration creates a new workspace-scoped table with a workspace_id foreign key, but never enables Row Level Security or defines any policy on it.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["database.rls", "multi-tenant.tenant-isolation"],
+    "prohibited_categories": ["injection.sql", "secrets-crypto.hardcoded-secret"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "SEC-DB-001",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [3, 9] },
+        "severity_range": ["P0", "P0"],
+        "confidence_range": ["medium", "high"],
+        "exploit_preconditions": "Any authenticated (or, depending on default grants, anon) caller reachable through the Data API — RLS is the only per-row tenant boundary this schema defines, and it was never enabled on this table.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "This is the plain, unambiguous version of §3.10's RLS-disabled finding — the table is clearly tenant-scoped (a workspace_id FK, a comment even calls out the missing statement), and there is genuinely no RLS anywhere in this file. Distinct from fixture database-02 (not yet implemented in Phase 1's first ten), which tests the opposite false-positive: RLS *enabled* with zero policies on a table that's meant to be service-role-only, which is the correct deny-all pattern and must not be flagged the same way."
+}

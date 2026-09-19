@@ -1,0 +1,27 @@
+{
+  "fixture_id": "concurrency-01-toctou-select-then-update-job-claim",
+  "domain": "concurrency",
+  "tags": ["vulnerable", "concurrency"],
+  "spec_ref": "3.11",
+  "description": "A job-claim function reads the oldest pending job in one query, then updates it to 'running' in a second query keyed only on id — with no condition re-checking that the job is still 'pending' at update time. Two workers polling concurrently can both select the same candidate before either update lands, and both then successfully update it, double-claiming the job.",
+  "files": ["claim-job.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["concurrency.toctou"],
+    "prohibited_categories": ["access-control.idor", "injection.sql"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "SEC-CONCURRENCY-001",
+        "category": "concurrency.toctou",
+        "files": ["claim-job.ts"],
+        "line_ranges": { "claim-job.ts": [20, 25] },
+        "severity_range": ["P1", "P0"],
+        "confidence_range": ["medium", "high"],
+        "exploit_preconditions": "Two or more worker processes must be polling this function concurrently (the stated deployment shape — 'called concurrently by every worker instance on a shared poll loop'); no attacker input is required, only ordinary concurrent execution.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "This is the TOCTOU pattern from §3.11: a read (SELECT WHERE status='pending') followed by a separate write (UPDATE ... WHERE id=X) with no atomicity between them and no re-check of the condition that made the row eligible in the first place. Compare to the real, safe version of this exact function in src/server/github/writes.ts (claimNextPendingReview), which re-applies the eligibility filter inside the UPDATE's WHERE clause and treats a null result from that update as 'someone else already claimed it' — that re-check is precisely what this fixture omits."
+}

@@ -24,6 +24,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Security-benchmark fixture source snippets are deliberately
+    // minimal, illustrative vulnerable/safe code samples — never
+    // imported or executed by the app, not meant to lint clean (see
+    // tests/security-benchmarks/README.md).
+    "tests/security-benchmarks/**/fixture/**",
   ]),
 ]);
 

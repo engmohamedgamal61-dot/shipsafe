@@ -1,0 +1,27 @@
+{
+  "fixture_id": "multi-tenant-04-ambiguous-security-definer-no-callsite",
+  "domain": "multi-tenant",
+  "tags": ["ambiguous"],
+  "spec_ref": "3.8",
+  "description": "A migration defines a SECURITY DEFINER function that updates a cross-tenant-relevant cache with no internal caller/tenant-ownership check inside the function body. This fixture deliberately includes no call site — no RPC grant, no route, no trigger — so it is unknowable from the included files alone whether this function is ever reachable with a caller-influenced workspace_id.",
+  "files": ["migration.sql"],
+  "expected": {
+    "needs_more_context_acceptable": true,
+    "allowed_categories": ["multi-tenant.security-definer"],
+    "prohibited_categories": ["access-control.idor", "injection.sql", "secrets-crypto.hardcoded-secret"],
+    "required_findings": [],
+    "optional_findings": [
+      {
+        "id": "opt-1",
+        "rule_id": "SEC-TENANT-001",
+        "category": "multi-tenant.security-definer",
+        "files": ["migration.sql"],
+        "line_ranges": { "migration.sql": [5, 19] },
+        "severity_range": ["P1", "P1"],
+        "confidence_range": ["low", "low"],
+        "exploit_preconditions": "Unconfirmed by this fixture: requires some RPC/route/trigger elsewhere in the codebase to expose this function to 'authenticated' callers with a client-suppliable workspace_id — no such call site is included here, which is exactly the missing information that should downgrade confidence."
+      }
+    ]
+  },
+  "explanation": "Mirrors §9 Example B: a SECURITY DEFINER function with no internal ownership check, but no visible call site to confirm reachability. This fixture originally encoded that observation as a `required_findings[]` entry with `needs_more_context_acceptable: true` at the same time — a real contradiction: `required_findings` are entries every correct reviewer run must produce, which cannot be simultaneously true alongside 'zero findings is also a fully correct answer.' Fixed by moving it to `optional_findings` (required_findings is now empty, per the plan's §3.1 rule that ambiguous fixtures must never encode their conditional observation as required). The three fully correct responses are now: (a) zero findings, (b) an explicit needs_more_context signal, or (c) a single low-confidence, non-P0 finding matching opt-1. A confident/high-confidence finding, or any finding outside the multi-tenant category, is scored as prohibited — see the plan's §4.1."
+}

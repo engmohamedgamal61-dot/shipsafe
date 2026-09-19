@@ -1,0 +1,27 @@
+{
+  "fixture_id": "access-control-01-idor-service-role-no-owner-check",
+  "domain": "access-control",
+  "tags": ["vulnerable"],
+  "spec_ref": "3.1",
+  "description": "A GET route reads a review by id using the service-role client, with no session or ownership check anywhere in the function.",
+  "files": ["route.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["access-control.idor"],
+    "prohibited_categories": ["injection.sql", "secrets-crypto.hardcoded-secret"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "SEC-AUTHZ-001",
+        "category": "access-control.idor",
+        "files": ["route.ts"],
+        "line_ranges": { "route.ts": [8, 14] },
+        "severity_range": ["P0", "P0"],
+        "confidence_range": ["medium", "high"],
+        "exploit_preconditions": "None — any caller (authenticated or not) who can guess or obtain a review id can read it, because the service-role client bypasses RLS and no ownership/membership check exists in this function.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "This is the spec's own §9 'Example A' scenario, as a standalone fixture: createServiceSupabaseClient() bypasses RLS entirely, and the route never checks the caller's session or workspace membership before returning the row. Correct remediation (per the spec's safe pattern) is the user-session client (RLS-scoped) or an explicit membership check before the service-role read."
+}

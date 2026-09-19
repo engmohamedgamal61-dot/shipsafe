@@ -1,0 +1,15 @@
+{
+  "fixture_id": "access-control-02-fp-trap-service-role-in-trusted-worker",
+  "domain": "access-control",
+  "tags": ["safe", "false_positive_trap"],
+  "spec_ref": "3.1",
+  "description": "A background worker uses the service-role client to update a review row it just atomically claimed from a fixed poll loop — no end-user request is involved anywhere in this call path.",
+  "files": ["worker.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": ["access-control.idor"],
+    "required_findings": []
+  },
+  "explanation": "Tests the exact false-positive this spec's §3.1 calls out by name: 'a service-role write inside a background worker... is only a finding when the *triggering* input is user- or attacker-controlled without intervening validation.' Here the trigger is a fixed internal poll loop claiming an already-durably-queued row (see claimNextPendingReview's own atomic-claim guarantees) — there is no end-user request anywhere in this path for an ownership check to even apply to. A reviewer that pattern-matches 'service-role client + no per-call auth check' without tracing what actually triggered the call fails this fixture."
+}

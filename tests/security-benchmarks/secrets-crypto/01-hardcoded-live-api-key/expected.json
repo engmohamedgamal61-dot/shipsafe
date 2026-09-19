@@ -1,0 +1,27 @@
+{
+  "fixture_id": "secrets-crypto-01-hardcoded-live-api-key",
+  "domain": "secrets-crypto",
+  "tags": ["vulnerable"],
+  "spec_ref": "3.6",
+  "description": "A shared client factory hardcodes a live-shaped Anthropic API key as a string literal in source, instead of reading it from an environment variable.",
+  "files": ["anthropic-client.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["secrets-crypto.hardcoded-secret"],
+    "prohibited_categories": ["access-control.idor", "injection.sql"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "SEC-SECRETS-001",
+        "category": "secrets-crypto.hardcoded-secret",
+        "files": ["anthropic-client.ts"],
+        "line_ranges": { "anthropic-client.ts": [8, 8] },
+        "severity_range": ["P0", "P0"],
+        "confidence_range": ["high", "high"],
+        "exploit_preconditions": "None beyond read access to the source/repository (or its git history) — anyone who can view this file can extract and use the key directly; no runtime interaction with the app is needed.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "Directly matches §3.6's P0 vulnerable pattern: 'const client = createClient(url, \"sb_secret_abc123...\")' — an API key written as a literal string in source rather than sourced from env/secret-manager. The key here has a real Anthropic key's shape (sk-ant-api03- prefix, correct-looking length) rather than an obvious placeholder like 'YOUR_KEY_HERE', so a reviewer must actually notice the literal, not just pattern-match on a suspicious variable name — and should not be misled by §3.6's own false-positive carve-out for clearly-labeled example/placeholder values, since nothing here labels it as such."
+}

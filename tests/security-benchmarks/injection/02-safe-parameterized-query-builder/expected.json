@@ -1,0 +1,15 @@
+{
+  "fixture_id": "injection-02-safe-parameterized-query-builder",
+  "domain": "injection",
+  "tags": ["safe", "false_positive_trap"],
+  "spec_ref": "3.3",
+  "description": "The same shape as injection-01 — a template literal wrapping a function parameter, passed to a query call — but here `.ilike()` is a real parameterized query-builder method, not string-built SQL.",
+  "files": ["search-repos.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": ["injection.sql"],
+    "required_findings": []
+  },
+  "explanation": "Directly tests §3.3's named false positive: 'Parameterized queries via a real client library... mistaken for string concatenation because the code reads like a query — read the actual method being called.' The template literal here builds the *pattern argument* to .ilike(), not a SQL statement; the Supabase client parameterizes it before it reaches Postgres. A reviewer that flags this without checking whether .ilike()/.eq()/etc. are parameterized methods (as opposed to a raw .query(sql) call) fails this fixture — and would also fail to distinguish it from the genuinely vulnerable injection-01, which looks superficially similar."
+}

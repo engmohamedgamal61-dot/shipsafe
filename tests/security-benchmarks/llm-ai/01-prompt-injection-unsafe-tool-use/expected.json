@@ -1,0 +1,38 @@
+{
+  "fixture_id": "llm-ai-01-prompt-injection-unsafe-tool-use",
+  "domain": "llm-ai",
+  "tags": ["vulnerable"],
+  "spec_ref": "3.17",
+  "description": "An auto-fix function concatenates an untrusted PR diff directly into a model prompt with no delimiter (LLM01 Prompt Injection), then parses the model's JSON output with no schema validation and applies it as a direct file write with no check that the model-supplied filePath is actually one of the PR's own changed files (LLM06 Excessive Agency / unsafe tool-use).",
+  "files": ["auto-fix.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["llm.prompt-injection", "llm.excessive-agency"],
+    "prohibited_categories": ["access-control.idor", "injection.sql"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "SEC-LLM-001",
+        "category": "llm.prompt-injection",
+        "files": ["auto-fix.ts"],
+        "line_ranges": { "auto-fix.ts": [14, 14] },
+        "severity_range": ["P1", "P0"],
+        "confidence_range": ["medium", "high"],
+        "exploit_preconditions": "The attacker only needs to get text into the PR diff (a comment, a string literal, a commit message included in the diff) — no special access beyond opening a PR, since diffText is concatenated with no delimiter distinguishing it from the surrounding instruction text.",
+        "must_reference_root_cause_once": true
+      },
+      {
+        "id": "req-2",
+        "rule_id": "SEC-LLM-002",
+        "category": "llm.excessive-agency",
+        "files": ["auto-fix.ts"],
+        "line_ranges": { "auto-fix.ts": [22, 25] },
+        "severity_range": ["P0", "P0"],
+        "confidence_range": ["medium", "high"],
+        "exploit_preconditions": "Requires the prompt-injection finding (req-1) to succeed in getting the model to emit an attacker-chosen filePath/newContent pair; this finding is about the missing second layer of defense (no schema validation, no diff-membership check on filePath) that would otherwise contain that failure.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "Combines two distinct LLM Top 10:2025 categories from §3.17 in one fixture, each with its own vulnerable-pattern snippet in the spec: LLM01 Prompt Injection (diffText concatenated into the prompt with no delimiter — matches §3.17's first vulnerable snippet exactly) and LLM06 Excessive Agency (JSON.parse'd model output applied directly via a file-write tool with no diff-membership check on the model-supplied path — matches §3.17's second vulnerable snippet exactly). A reviewer should raise both as separate findings (different root causes, different remediations — delimiters/system-prompt framing for one, schema validation plus a known-file-list cross-check for the other) rather than merging them into one, even though the second is only exploitable as a consequence of the first succeeding."
+}

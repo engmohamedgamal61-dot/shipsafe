@@ -1,0 +1,40 @@
+{
+  "fixture_id": "webhooks-01-no-signature-verification",
+  "domain": "webhooks",
+  "tags": ["vulnerable"],
+  "spec_ref": "3.9",
+  "description": "A billing webhook handler parses the payload and acts on it (marking an invoice paid) with no signature verification anywhere in the function, and no delivery-id/idempotency check either.",
+  "files": ["route.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["webhook.signature-verification", "webhook.idempotency", "auth.broken-authentication"],
+    "prohibited_categories": ["access-control.idor", "injection.sql"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "SEC-WEBHOOK-001",
+        "category": "webhook.signature-verification",
+        "alternate_categories": ["auth.broken-authentication"],
+        "files": ["route.ts"],
+        "line_ranges": { "route.ts": [8, 13] },
+        "severity_range": ["P0", "P0"],
+        "confidence_range": ["high", "high"],
+        "exploit_preconditions": "None — this is a public POST route with no signature check at all; anyone who can construct a JSON body with `type: \"payment.succeeded\"` and an invoiceId can mark any invoice paid.",
+        "must_reference_root_cause_once": true
+      }
+    ],
+    "optional_findings": [
+      {
+        "id": "opt-1",
+        "rule_id": "SEC-WEBHOOK-002",
+        "category": "webhook.idempotency",
+        "files": ["route.ts"],
+        "line_ranges": { "route.ts": [8, 13] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["low", "medium"],
+        "exploit_preconditions": "Same route, a distinct root cause from req-1: even a correctly-signed, legitimately-replayed webhook delivery (the provider's own retry behavior, or a captured-and-replayed request) would be reprocessed, since there is no delivery-id/idempotency check anywhere in the handler."
+      }
+    ]
+  },
+  "explanation": "Missing signature verification (req-1, required) is the P0 case in §3.9 — the handler trusts and acts on the payload (markInvoicePaid, a real state-changing side effect) with zero authenticity check. Missing idempotency/replay protection (opt-1, optional) is a real, independent secondary gap in this same fixture, but it is intentionally NOT required: a reviewer that raises only the signature issue has still correctly solved what this fixture primarily tests, and a reviewer that also raises the idempotency gap should get credit for a legitimate observation, not a false-positive penalty. This is the fixture that originally exposed the benchmark contract's ambiguity (a single `finding_count` range covering both a required and a merely-legitimate finding, with no way to tell them apart in scoring) — see the plan's §3.1 for the fix. `req-1.alternate_categories` was added after the first real production baseline run: the reviewer correctly identified this exact vulnerability (accurate evidence, correct file/lines/severity) but labeled it `broken-auth` — a defensible, specific description (missing signature verification IS a form of broken authentication), just not this fixture's own `webhook.signature-verification` label. Since req-1/opt-1 already overlap in file/line and need disambiguation, only an explicit, hand-authored alternate (confirmed disjoint from opt-1's `webhook.idempotency`) can credit this without reintroducing the ambiguity the disambiguation rule exists to prevent — see `schema.ts`'s `alternate_categories` doc comment."
+}
