@@ -51,6 +51,17 @@ const eslintConfig = defineConfig([
     // app, not meant to lint/typecheck clean (see
     // tests/architecture-benchmarks/README.md).
     "tests/architecture-benchmarks/**/fixture/**",
+    // Test-Reviewer-benchmark fixture source snippets are likewise
+    // minimal, illustrative test/production file samples (some
+    // deliberately contain a weak/tautological assertion, an
+    // unawaited async assertion, or an import from a sibling module
+    // that isn't real in the fixture set, since only the shown test's
+    // own structure is under test) — never imported, linted, or
+    // executed as part of the app's real test suite (vitest's own
+    // `include` is scoped to `src/**/*.test.ts`, never `tests/**`, so
+    // these never run as tests either — see
+    // tests/test-reviewer-benchmarks/README.md).
+    "tests/test-reviewer-benchmarks/**/fixture/**",
   ]),
 ]);
 
