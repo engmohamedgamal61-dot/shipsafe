@@ -1,0 +1,41 @@
+{
+  "fixture_id": "confirmed-blocker-02-single-p0-finding",
+  "domain": "confirmed-blocker",
+  "tags": ["confirmed-blocker"],
+  "description": "A single confirmed P0 finding (irreversible destructive migration) with every other reviewer clean.",
+  "reviewer_runs": [
+    { "reviewer": "code", "status": "complete", "summary": "No issues found.", "findings": [] },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns.", "findings": [] },
+    { "reviewer": "architecture", "status": "complete", "summary": "No architectural concerns.", "findings": [] },
+    {
+      "reviewer": "database",
+      "status": "complete",
+      "summary": "One critical migration issue.",
+      "findings": [
+        {
+          "id": "db-p0-1",
+          "severity": "P0",
+          "title": "Migration drops a column with no backup or reversibility",
+          "description": "Migration `0042_drop_legacy_status.sql` runs `ALTER TABLE reviews DROP COLUMN legacy_status;` with no prior backfill, no down-migration, and no data export step. Any data in that column is permanently destroyed the moment this migration runs, with no way to recover it if the drop turns out to be premature.",
+          "category": "irreversible-destructive-migration",
+          "recommendation": "Back up or export the column's data first, and provide a down-migration or an explicit grace period before the column is physically dropped.",
+          "confidence": 0.97,
+          "filePath": "supabase/migrations/0042_drop_legacy_status.sql",
+          "lineStart": 1,
+          "lineEnd": 1
+        }
+      ]
+    },
+    { "reviewer": "test", "status": "complete", "summary": "No test changes needed for a migration-only change.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "DO_NOT_APPROVE",
+    "rationale": "A confirmed P0 finding — irreversible, unrecoverable data loss — is present. The deterministic floor itself already forces DO_NOT_APPROVE whenever any P0 finding exists, so this is the one case where the judge's own reasoning and the floor are guaranteed to agree.",
+    "blocking_finding_ids": ["db-p0-1"],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "authorization", "N+1", "hardcoded credential"]
+  },
+  "explanation": "Floor-guaranteed blocker: exists mainly to confirm the judge doesn't somehow talk itself into APPROVE in the face of an unambiguous P0, and to give the benchmark a case where verdict correctness and floor compliance can never disagree."
+}

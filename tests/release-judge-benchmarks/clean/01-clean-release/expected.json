@@ -1,0 +1,23 @@
+{
+  "fixture_id": "clean-01-clean-release",
+  "domain": "clean",
+  "tags": ["clean"],
+  "description": "All five specialist reviewers completed with zero findings. Nothing to weigh.",
+  "reviewer_runs": [
+    { "reviewer": "code", "status": "complete", "summary": "No issues found. The change is a small, well-tested refactor.", "findings": [] },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns identified.", "findings": [] },
+    { "reviewer": "architecture", "status": "complete", "summary": "No architectural concerns.", "findings": [] },
+    { "reviewer": "database", "status": "complete", "summary": "No schema or query changes in this diff.", "findings": [] },
+    { "reviewer": "test", "status": "complete", "summary": "Existing test coverage is adequate for this change.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "APPROVE",
+    "rationale": "No specialist reviewer reported any finding of any severity. There is nothing to weigh and no reason to withhold approval.",
+    "blocking_finding_ids": [],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "hardcoded", "race condition", "N+1", "migration"]
+  },
+  "explanation": "Baseline sanity case: a judge must be able to approve cleanly when given nothing to object to, without inventing a reason to hedge."
+}

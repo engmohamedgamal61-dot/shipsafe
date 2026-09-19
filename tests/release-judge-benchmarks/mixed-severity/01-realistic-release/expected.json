@@ -1,0 +1,77 @@
+{
+  "fixture_id": "mixed-severity-01-realistic-release",
+  "domain": "mixed-severity",
+  "tags": ["mixed-severity"],
+  "description": "A realistic release: one confirmed P1 (non-security) from the code reviewer, plus an unrelated P2 from architecture and a NIT from test. Security and database are clean.",
+  "reviewer_runs": [
+    {
+      "reviewer": "code",
+      "status": "complete",
+      "summary": "One high-priority concurrency bug.",
+      "findings": [
+        {
+          "id": "code-p1-race",
+          "severity": "P1",
+          "title": "Race condition in webhook idempotency check",
+          "description": "`handleWebhookEvent` reads the `processed_events` row, checks if it exists, then inserts it — two concurrent deliveries of the same webhook can both pass the check before either insert commits, causing the event to be processed twice.",
+          "category": "race-condition",
+          "recommendation": "Use an atomic INSERT ... ON CONFLICT DO NOTHING and check the returned row count instead of a separate read-then-write.",
+          "confidence": 0.85,
+          "filePath": "src/server/github/ingest.ts",
+          "lineStart": 60,
+          "lineEnd": 68
+        }
+      ]
+    },
+    {
+      "reviewer": "architecture",
+      "status": "complete",
+      "summary": "One minor layering concern.",
+      "findings": [
+        {
+          "id": "arch-p2-webhook",
+          "severity": "P2",
+          "title": "Webhook handler reaches directly into the repository layer",
+          "description": "`handleWebhookEvent` calls the Supabase client directly instead of going through `src/server/repositories/`'s existing repository functions, bypassing the app's usual data-access layer.",
+          "category": "layering",
+          "recommendation": "Add a repository function for this and call that instead of the Supabase client directly.",
+          "confidence": 0.7,
+          "filePath": "src/server/github/ingest.ts",
+          "lineStart": 55,
+          "lineEnd": 55
+        }
+      ]
+    },
+    {
+      "reviewer": "test",
+      "status": "complete",
+      "summary": "One nit.",
+      "findings": [
+        {
+          "id": "test-nit-naming",
+          "severity": "NIT",
+          "title": "Test description doesn't match behavior under test",
+          "description": "The test named `it(\"processes the event\")` actually asserts the event is DE-duplicated, not merely processed.",
+          "category": "test-quality.naming",
+          "recommendation": "Rename to describe deduplication behavior.",
+          "confidence": 0.6,
+          "filePath": "src/server/github/ingest.test.ts",
+          "lineStart": 30,
+          "lineEnd": 30
+        }
+      ]
+    },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns.", "findings": [] },
+    { "reviewer": "database", "status": "complete", "summary": "No schema or query concerns.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "APPROVE_WITH_MINOR_FIXES",
+    "rationale": "One confirmed, non-security P1 (a real but not catastrophic double-processing race condition, not data loss or a security exposure) plus unrelated minor P2/Nit findings. This matches the deterministic floor for exactly one P1 finding, and none of the accompanying minor findings changes that.",
+    "blocking_finding_ids": [],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "authorization", "hardcoded credential", "data loss"]
+  },
+  "explanation": "The realistic 'mixed severity across several reviewers' case the spec asked for, with an explicit expected verdict. Deliberately keeps the P1 non-security and non-catastrophic so this fixture's expected outcome is unambiguous and floor-backed, unlike confirmed-blocker-01's deliberately policy-driven security escalation."
+}

@@ -1,0 +1,41 @@
+{
+  "fixture_id": "confirmed-blocker-01-single-p1-security-finding",
+  "domain": "confirmed-blocker",
+  "tags": ["confirmed-blocker"],
+  "description": "A single, high-confidence P1 security finding (missing authorization check) with every other reviewer clean.",
+  "reviewer_runs": [
+    { "reviewer": "code", "status": "complete", "summary": "No issues found.", "findings": [] },
+    {
+      "reviewer": "security",
+      "status": "complete",
+      "summary": "One high-priority authorization gap.",
+      "findings": [
+        {
+          "id": "sec-p1-1",
+          "severity": "P1",
+          "title": "Missing authorization check on workspace deletion endpoint",
+          "description": "The new `DELETE /api/workspaces/:id` handler deletes the workspace after only verifying the caller is authenticated, never checking that the caller is a member (let alone an owner) of that workspace. Any authenticated user can delete any workspace by id.",
+          "category": "broken-access-control",
+          "recommendation": "Verify the caller has an owner-level `WorkspaceMembership` for the target workspace before deleting it.",
+          "confidence": 0.95,
+          "filePath": "src/app/api/workspaces/[id]/route.ts",
+          "lineStart": 18,
+          "lineEnd": 24
+        }
+      ]
+    },
+    { "reviewer": "architecture", "status": "complete", "summary": "No architectural concerns.", "findings": [] },
+    { "reviewer": "database", "status": "complete", "summary": "No schema or query concerns.", "findings": [] },
+    { "reviewer": "test", "status": "complete", "summary": "Existing tests don't cover authorization for this new endpoint, but that follows from the missing check itself.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "DO_NOT_APPROVE",
+    "rationale": "A confirmed, high-confidence P1 broken-access-control finding lets any authenticated user destroy any workspace. This is a realistic, severe, immediately-exploitable security defect — the kind of confirmed P1 security finding the judge should treat as release-blocking on its own, independent of what any other reviewer reported.",
+    "blocking_finding_ids": ["sec-p1-1"],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "hardcoded credential", "data loss", "N+1"]
+  },
+  "explanation": "Tests the judge's own policy judgment: a single confirmed, severe security P1 should block release even though the deterministic floor alone (minimumVerdictFor) only guarantees APPROVE_WITH_MINOR_FIXES for one P1 — a well-tuned judge is expected to be stricter than the bare floor here, not merely as strict as it."
+}

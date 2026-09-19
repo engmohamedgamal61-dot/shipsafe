@@ -1,0 +1,95 @@
+{
+  "fixture_id": "aggregate-risk-01-multiple-p2-across-reviewers",
+  "domain": "aggregate-risk",
+  "tags": ["aggregate-risk"],
+  "description": "Four independent, unrelated P2 findings spread across four different reviewers — a real volume of minor issues, but none severe and none related.",
+  "reviewer_runs": [
+    {
+      "reviewer": "code",
+      "status": "complete",
+      "summary": "One P2.",
+      "findings": [
+        {
+          "id": "code-p2-1",
+          "severity": "P2",
+          "title": "Duplicated retry logic",
+          "description": "The retry loop added in `syncRepository` duplicates logic already in `withRetry` from `src/lib/retry.ts` instead of reusing it.",
+          "category": "duplication",
+          "recommendation": "Reuse `withRetry` instead of a bespoke loop.",
+          "confidence": 0.8,
+          "filePath": "src/server/github/sync.ts",
+          "lineStart": 40,
+          "lineEnd": 55
+        }
+      ]
+    },
+    {
+      "reviewer": "architecture",
+      "status": "complete",
+      "summary": "One P2.",
+      "findings": [
+        {
+          "id": "arch-p2-1",
+          "severity": "P2",
+          "title": "New module reaches across layer boundary",
+          "description": "`src/server/github/sync.ts` imports directly from `src/app/api/webhooks/github/route.ts` instead of going through the shared `src/server/github/ingest.ts` service layer.",
+          "category": "layering",
+          "recommendation": "Route the shared logic through `ingest.ts` instead of importing the route handler directly.",
+          "confidence": 0.7,
+          "filePath": "src/server/github/sync.ts",
+          "lineStart": 5,
+          "lineEnd": 5
+        }
+      ]
+    },
+    {
+      "reviewer": "database",
+      "status": "complete",
+      "summary": "One P2.",
+      "findings": [
+        {
+          "id": "db-p2-1",
+          "severity": "P2",
+          "title": "Missing index on a newly-filtered column",
+          "description": "The new query filters `repositories` by `provider`, which has no index. At current table sizes this is a full scan but not yet a performance emergency.",
+          "category": "missing-index",
+          "recommendation": "Add an index on `repositories(provider)` in a follow-up migration.",
+          "confidence": 0.65,
+          "filePath": "src/server/repositories/list.ts",
+          "lineStart": 22,
+          "lineEnd": 22
+        }
+      ]
+    },
+    {
+      "reviewer": "test",
+      "status": "complete",
+      "summary": "One P2.",
+      "findings": [
+        {
+          "id": "test-p2-1",
+          "severity": "P2",
+          "title": "New sync path has no test coverage",
+          "description": "`syncRepository`'s new retry branch has no test exercising the retry-then-succeed path, only the always-succeeds path.",
+          "category": "missing-error-path.untested-failure-mode",
+          "recommendation": "Add a test that fails once, then succeeds, and asserts the retry path is taken.",
+          "confidence": 0.75,
+          "filePath": "src/server/github/sync.test.ts",
+          "lineStart": 1,
+          "lineEnd": 1
+        }
+      ]
+    },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "APPROVE_WITH_MINOR_FIXES",
+    "rationale": "Four P2 findings exist, but they are all independent, minor, and non-security. Their sheer number should not, by itself, be treated as an aggregate signal of high risk that escalates the verdict past minor-fixes — none of the four rises anywhere near release-blocking severity individually or in combination.",
+    "blocking_finding_ids": [],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "P0", "critical", "unauthorized"]
+  },
+  "explanation": "Tests that the judge doesn't naively treat 'many reviewers found something' as itself an escalating signal — volume of unrelated minor findings is not the same as a single severe one."
+}

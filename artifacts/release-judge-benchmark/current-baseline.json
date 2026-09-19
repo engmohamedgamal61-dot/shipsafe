@@ -1,0 +1,243 @@
+{
+  "isCompatibilityBaseline": true,
+  "note": "This is a compatibility baseline of the CURRENT production Release Judge, measured as-shipped.",
+  "metadata": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-5",
+    "maxTokens": 4096,
+    "concurrency": 1,
+    "timeoutMs": 30000,
+    "versions": {
+      "releaseJudgeBenchmarkSchemaVersion": "1.2.0",
+      "releaseJudgeBenchmarkDatasetVersion": "phase1-10-of-10",
+      "releaseJudgePromptVersion": "tuning-pass-1-minimum-verdict-floor"
+    },
+    "runTimestamp": "2026-09-19T19:10:49.699Z"
+  },
+  "fixtures": [
+    {
+      "fixtureId": "aggregate-risk-01-multiple-p2-across-reviewers",
+      "domain": "aggregate-risk",
+      "tags": [
+        "aggregate-risk"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "expectedVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "deterministicFloor": "APPROVE_WITH_MINOR_FIXES",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 3624,
+      "inputTokens": 1680,
+      "outputTokens": 174,
+      "errorMessage": null,
+      "rawSummary": "No P0/P1 or security issues found. Four P2 findings across code, architecture, database, and test reviewers: duplicated retry logic, a layering violation with a cross-layer import, a missing index on a newly-filtered column, and missing test coverage for the retry-then-succeed path. None are confirmed high-severity blockers, but per policy any findings preclude a clean APPROVE. Recommend addressing these minor issues before release."
+    },
+    {
+      "fixtureId": "ambiguous-01-low-confidence-p1-finding",
+      "domain": "ambiguous",
+      "tags": [
+        "ambiguous"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "expectedVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "deterministicFloor": "APPROVE_WITH_MINOR_FIXES",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 4706,
+      "inputTokens": 1515,
+      "outputTokens": 401,
+      "errorMessage": null,
+      "rawSummary": "Code, security, database, and test reviewers reported no findings. The architecture reviewer flagged a single P1 concern about a possible circular dependency between billing/plans.ts and billing/usage.ts, but explicitly noted it is low-confidence and could not be confirmed without seeing usage.ts's full contents. Since a finding exists (even if unconfirmed), the release cannot be a clean APPROVE, but the low-confidence nature of this sole finding does not rise to a confirmed blocker justifying DO_NOT_APPROVE. Recommend addressing/verifying the potential circular dependency before or shortly after release."
+    },
+    {
+      "fixtureId": "clean-01-clean-release",
+      "domain": "clean",
+      "tags": [
+        "clean"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "APPROVE",
+      "expectedVerdict": "APPROVE",
+      "deterministicFloor": "APPROVE",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 2350,
+      "inputTokens": 1385,
+      "outputTokens": 80,
+      "errorMessage": null,
+      "rawSummary": "All five specialist reviewers (code, security, architecture, database, test) reported zero findings and no concerns. Since no findings exist across any reviewer, the release meets the bar for full approval."
+    },
+    {
+      "fixtureId": "confirmed-blocker-01-single-p1-security-finding",
+      "domain": "confirmed-blocker",
+      "tags": [
+        "confirmed-blocker"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "DO_NOT_APPROVE",
+      "expectedVerdict": "DO_NOT_APPROVE",
+      "deterministicFloor": "APPROVE_WITH_MINOR_FIXES",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 2876,
+      "inputTokens": 1519,
+      "outputTokens": 186,
+      "errorMessage": null,
+      "rawSummary": "Security reviewer found a confirmed, high-confidence P1 broken access control issue: the DELETE /api/workspaces/:id endpoint only checks authentication, not workspace membership/ownership, allowing any authenticated user to delete any workspace. This is a severe access control defect that alone warrants DO_NOT_APPROVE per policy. Test reviewer notes the lack of authorization test coverage stems from the same root cause. Code, architecture, and database reviewers found no issues."
+    },
+    {
+      "fixtureId": "confirmed-blocker-02-single-p0-finding",
+      "domain": "confirmed-blocker",
+      "tags": [
+        "confirmed-blocker"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "DO_NOT_APPROVE",
+      "expectedVerdict": "DO_NOT_APPROVE",
+      "deterministicFloor": "DO_NOT_APPROVE",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 2968,
+      "inputTokens": 1529,
+      "outputTokens": 191,
+      "errorMessage": null,
+      "rawSummary": "Four of five reviewers found no issues, but the database reviewer flagged a confirmed P0: migration 0042 irreversibly drops the `legacy_status` column from `reviews` with no backfill, backup, or down-migration, permanently destroying any existing data if the drop proves premature. Per policy, a confirmed high-severity finding like this stands on its own and is not diluted by clean reports elsewhere. This should be addressed (e.g., add a backfill/export step and a reversible migration path) before release."
+    },
+    {
+      "fixtureId": "conflicting-signals-01-single-p1-among-clean-reviewers",
+      "domain": "conflicting-signals",
+      "tags": [
+        "conflicting-signals"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "expectedVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "deterministicFloor": "APPROVE_WITH_MINOR_FIXES",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 7093,
+      "inputTokens": 1493,
+      "outputTokens": 616,
+      "errorMessage": null,
+      "rawSummary": "Code, security, architecture, and test reviewers found no issues. The database reviewer identified a confirmed P1 issue: migration 0051_rename_column.sql renames reviews.legacy_verdict to reviews.verdict with no down-migration or compatibility view, meaning a rollback would break the application by referencing a nonexistent column. This is a real production risk but not a security defect (no access control, auth bypass, or exposed secret), so it does not meet the bar for mandatory DO_NOT_APPROVE. Given the presence of at least one confirmed finding, APPROVE is not appropriate. Recommend addressing the migration reversibility (e.g., add a down-migration or compatibility view) before merging."
+    },
+    {
+      "fixtureId": "duplicate-01-same-root-cause-two-reviewers",
+      "domain": "duplicate",
+      "tags": [
+        "duplicate"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "expectedVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "deterministicFloor": "APPROVE_WITH_MINOR_FIXES",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 6113,
+      "inputTokens": 1636,
+      "outputTokens": 471,
+      "errorMessage": null,
+      "rawSummary": "A single confirmed root-cause issue was reported by both the code and database reviewers: an N+1 query pattern in getReviewsForRepository (src/server/reviews/repository.ts:44), where findings are fetched in a loop per review instead of a single batched query. This is a high-priority (P1) performance defect, but not a security or access-control issue, so it does not meet the bar for an automatic DO_NOT_APPROVE. Security, architecture, and test reviewers reported no findings. Given at least one confirmed finding exists, approval with minor fixes is warranted — the N+1 query should be addressed before or shortly after release to avoid severe latency at scale."
+    },
+    {
+      "fixtureId": "failed-reviewer-01-required-reviewer-failed",
+      "domain": "failed-reviewer",
+      "tags": [
+        "failed-reviewer"
+      ],
+      "status": "scored",
+      "passed": false,
+      "actualVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "expectedVerdict": "DO_NOT_APPROVE",
+      "deterministicFloor": "APPROVE",
+      "failureSymptoms": [
+        "missed blocker",
+        "failed-reviewer gap not recognized by judge"
+      ],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 3602,
+      "inputTokens": 1383,
+      "outputTokens": 193,
+      "errorMessage": null,
+      "rawSummary": "Four of five reviewers (code, security, architecture, database) reported zero findings. However, the test reviewer failed to complete and could not assess the PR's test coverage/domain at all, leaving that area effectively unreviewed. This is a gap in review coverage rather than a confirmed defect, but per policy any incomplete/unknown state should not be treated as a clean pass. Recommend re-running the test reviewer before full approval; no confirmed blockers were identified by the reviewers that did complete."
+    },
+    {
+      "fixtureId": "minor-only-01-nit-and-p2-only",
+      "domain": "minor-only",
+      "tags": [
+        "minor-only"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "expectedVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "deterministicFloor": "APPROVE_WITH_MINOR_FIXES",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 7071,
+      "inputTokens": 1512,
+      "outputTokens": 278,
+      "errorMessage": null,
+      "rawSummary": "No high-severity or security issues were found. Code and architecture reviewers each reported a single minor issue: a naming-convention nit in totals.ts and a P2 layering concern about a date-formatting helper being placed in the wrong module rather than the shared format utility. Security, database, and test reviewers reported no findings. Given at least one finding exists, policy requires at least minor fixes before approval, but nothing here rises to a blocking severity.”}"
+    },
+    {
+      "fixtureId": "mixed-severity-01-realistic-release",
+      "domain": "mixed-severity",
+      "tags": [
+        "mixed-severity"
+      ],
+      "status": "scored",
+      "passed": true,
+      "actualVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "expectedVerdict": "APPROVE_WITH_MINOR_FIXES",
+      "deterministicFloor": "APPROVE_WITH_MINOR_FIXES",
+      "failureSymptoms": [],
+      "hallucinatedTerms": [],
+      "groundingIssues": [],
+      "latencyMs": 6009,
+      "inputTokens": 1643,
+      "outputTokens": 524,
+      "errorMessage": null,
+      "rawSummary": "A confirmed P1 race condition exists in the webhook idempotency check (ingest.ts:60), allowing duplicate event processing under concurrent deliveries — this is a genuine functional/concurrency defect but not a security-classified issue (security reviewer found no concerns), so it does not meet the bar for automatic DO_NOT_APPROVE. Additionally, a P2 layering violation (webhook handler bypassing the repository layer) and a minor test-naming nit were reported. Database and security reviewers found no issues. Given the presence of a confirmed P1 defect plus additional lower-severity findings, this should not be approved as-is; the race condition should be fixed (e.g., via a unique constraint/atomic upsert) before release, along with addressing the layering concern and test naming."
+    }
+  ],
+  "suite": {
+    "fixturesRun": 10,
+    "productionFacingFixturesRun": 9,
+    "fixturesPassed": 9,
+    "verdictAccuracy": 1,
+    "blockingDefectRecall": 1,
+    "falseBlockRate": 0,
+    "missedBlockerRate": 0,
+    "duplicateRiskInflationRate": 0,
+    "lowConfidenceOverescalationRate": 0,
+    "rawJudgeFailedReviewerHandlingRate": 0,
+    "severityFloorComplianceRate": 1,
+    "rationaleGroundingAccuracy": 1,
+    "hallucinatedFindingRate": 0
+  },
+  "extraMetrics": {
+    "averageLatencyMs": 4641.2,
+    "totalInputTokens": 15295,
+    "totalOutputTokens": 3114
+  },
+  "fixturesWithProviderFailure": []
+}

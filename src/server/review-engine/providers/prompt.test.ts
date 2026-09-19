@@ -119,4 +119,38 @@ describe("buildJudgeSystemPrompt", () => {
     expect(prompt.toLowerCase()).toContain("advisory");
     expect(prompt.toLowerCase()).toContain("untrusted");
   });
+
+  it("states the minimum verdict floor for any finding, including a Nit", () => {
+    const prompt = buildJudgeSystemPrompt();
+    expect(prompt).toMatch(/never return APPROVE/i);
+    expect(prompt.toLowerCase()).toContain("nit");
+  });
+
+  it("states confirmed blocker discipline, including that a severe security P1 should block", () => {
+    const prompt = buildJudgeSystemPrompt();
+    expect(prompt).toMatch(/never diluted by other reviewers being clean/i);
+    expect(prompt).toMatch(/severe security defect/i);
+  });
+
+  it("states duplicate root-cause discipline", () => {
+    const prompt = buildJudgeSystemPrompt();
+    expect(prompt).toMatch(/same underlying root cause/i);
+    expect(prompt).toMatch(/never count the same root cause as multiple independent risks/i);
+  });
+
+  it("states low-confidence discipline", () => {
+    const prompt = buildJudgeSystemPrompt();
+    expect(prompt).toMatch(/must not be treated as a confirmed blocker/i);
+  });
+
+  it("states grounding discipline: only structured findings, never invent, never infer from raw code", () => {
+    const prompt = buildJudgeSystemPrompt();
+    expect(prompt).toMatch(/never invent a finding/i);
+    expect(prompt).toMatch(/never reason about or infer defects from raw code or a diff/i);
+  });
+
+  it("still forbids chain-of-thought / text outside the response schema", () => {
+    const prompt = buildJudgeSystemPrompt();
+    expect(prompt).toMatch(/do not include reasoning, chain-of-thought/i);
+  });
 });

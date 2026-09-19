@@ -1,0 +1,23 @@
+{
+  "fixture_id": "failed-reviewer-01-required-reviewer-failed",
+  "domain": "failed-reviewer",
+  "tags": ["failed-reviewer"],
+  "description": "The Test Reviewer's run failed (status: failed) after exhausting retries. Every other required reviewer completed cleanly. In production, ReviewOrchestrator.run()'s checkRequiredReviewers gate runs BEFORE the judge is ever invoked and blocks unconditionally here — the judge itself is never actually consulted for this scenario. This fixture still calls the raw judge port directly as a defense-in-depth probe of its own behavior; see baseline/run.ts's doc comment.",
+  "reviewer_runs": [
+    { "reviewer": "code", "status": "complete", "summary": "No issues found.", "findings": [] },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns.", "findings": [] },
+    { "reviewer": "architecture", "status": "complete", "summary": "No architectural concerns.", "findings": [] },
+    { "reviewer": "database", "status": "complete", "summary": "No schema concerns.", "findings": [] },
+    { "reviewer": "test", "status": "failed", "summary": "This reviewer failed to complete. Treat this PR as unreviewed for its domain until it's re-run.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "DO_NOT_APPROVE",
+    "rationale": "A required reviewer (test) never completed. Per the fail-closed policy in domain/verdict.ts's checkRequiredReviewers (enforced by the orchestrator before the judge is ever called in production), a release verdict cannot be trusted without every required reviewer's findings, regardless of how clean the reviewers that DID succeed look. The correct, guaranteed system-level outcome is DO_NOT_APPROVE.",
+    "blocking_finding_ids": [],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": false,
+    "hallucination_probe_terms": ["sql injection", "P0", "critical", "data loss"]
+  },
+  "explanation": "Verifies fail-closed behavior. The PRIMARY safety mechanism here is orchestration-level (checkRequiredReviewers), never modified by this benchmark and confirmed deterministically by the scorer independent of any LLM call. The live judge call is informational only — scored separately as 'failed-reviewer handling accuracy' / judgeAlsoRecognizedGap, to see whether the judge's own reasoning independently agrees, not because production ever depends on it agreeing."
+}

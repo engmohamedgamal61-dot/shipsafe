@@ -1,0 +1,59 @@
+{
+  "fixture_id": "duplicate-01-same-root-cause-two-reviewers",
+  "domain": "duplicate",
+  "tags": ["duplicate"],
+  "description": "The code reviewer and the database reviewer both independently flag the SAME N+1 query problem, from their own reviewing angle, each as a P1. It is one real defect, not two.",
+  "reviewer_runs": [
+    {
+      "reviewer": "code",
+      "status": "complete",
+      "summary": "One high-priority performance issue.",
+      "findings": [
+        {
+          "id": "code-p1-dup",
+          "severity": "P1",
+          "title": "N+1 query when loading review findings",
+          "description": "`getReviewsForRepository` loops over every `Review` and calls `getFindingsForReviewerRun` inside the loop, issuing one query per reviewer run instead of a single batched query. For a repository with hundreds of reviews this multiplies request latency severely.",
+          "category": "n-plus-one-query",
+          "recommendation": "Batch-load all findings for the page of reviews in one query, keyed by reviewer run id.",
+          "confidence": 0.9,
+          "filePath": "src/server/reviews/repository.ts",
+          "lineStart": 44,
+          "lineEnd": 52
+        }
+      ]
+    },
+    {
+      "reviewer": "database",
+      "status": "complete",
+      "summary": "One high-priority query-pattern issue.",
+      "findings": [
+        {
+          "id": "db-p1-dup",
+          "severity": "P1",
+          "title": "Per-row query pattern in getReviewsForRepository",
+          "description": "The loop in `getReviewsForRepository` (src/server/reviews/repository.ts) issues one `findings` query per reviewer run rather than a single `IN (...)` query. This is the same N+1 access pattern flagged from the query-shape side.",
+          "category": "n-plus-one-query",
+          "recommendation": "Replace the per-row query with a single batched query using `IN`.",
+          "confidence": 0.9,
+          "filePath": "src/server/reviews/repository.ts",
+          "lineStart": 44,
+          "lineEnd": 52
+        }
+      ]
+    },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns.", "findings": [] },
+    { "reviewer": "architecture", "status": "complete", "summary": "No architectural concerns beyond the query pattern already flagged.", "findings": [] },
+    { "reviewer": "test", "status": "complete", "summary": "Coverage is adequate for the change as written.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "APPROVE_WITH_MINOR_FIXES",
+    "rationale": "Two reviewers describe the identical N+1 query defect at the identical file/line from two angles. Correctly recognized as ONE confirmed P1 root cause, the outcome matches the single-P1 floor: APPROVE_WITH_MINOR_FIXES. Treating it as two independent confirmed high-priority issues (double-counting) would overstate the real risk and could push the verdict stricter than the evidence actually supports.",
+    "blocking_finding_ids": [],
+    "duplicate_groups": [["code-p1-dup", "db-p1-dup"]],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "P0", "critical", "data loss", "authorization"]
+  },
+  "explanation": "Directly tests duplicate-risk inflation: a judge that treats these as two separate confirmed P1s (rather than one shared root cause) is at real risk of escalating to DO_NOT_APPROVE on double-counted evidence, and unlike the deterministic floor's own blind spot here (it also can't dedupe), nothing downstream would catch the judge doing this, since applyVerdictFloor only ever makes a verdict stricter, never overrides an already-stricter judge call."
+}

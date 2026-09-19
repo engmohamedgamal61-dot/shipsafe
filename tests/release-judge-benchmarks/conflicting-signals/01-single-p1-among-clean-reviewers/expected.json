@@ -1,0 +1,41 @@
+{
+  "fixture_id": "conflicting-signals-01-single-p1-among-clean-reviewers",
+  "domain": "conflicting-signals",
+  "tags": ["conflicting-signals"],
+  "description": "The database reviewer flags a confirmed, non-trivial P1; the other four reviewers report zero findings. The judge must not let four 'clean' signals dilute the one real one.",
+  "reviewer_runs": [
+    { "reviewer": "code", "status": "complete", "summary": "No issues found.", "findings": [] },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns.", "findings": [] },
+    { "reviewer": "architecture", "status": "complete", "summary": "No architectural concerns.", "findings": [] },
+    {
+      "reviewer": "database",
+      "status": "complete",
+      "summary": "One high-priority migration issue.",
+      "findings": [
+        {
+          "id": "db-p1-1",
+          "severity": "P1",
+          "title": "Non-reversible migration with no rollback path",
+          "description": "Migration `0051_rename_column.sql` renames `reviews.legacy_verdict` to `reviews.verdict` in place with no down-migration and no compatibility view, so a rollback of this deploy would leave the application querying a column that no longer exists.",
+          "category": "irreversible-migration",
+          "recommendation": "Add a down-migration or a compatibility view before merging, so a rollback doesn't break the application.",
+          "confidence": 0.85,
+          "filePath": "supabase/migrations/0051_rename_column.sql",
+          "lineStart": 1,
+          "lineEnd": 1
+        }
+      ]
+    },
+    { "reviewer": "test", "status": "complete", "summary": "No test changes needed for a migration-only change.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "APPROVE_WITH_MINOR_FIXES",
+    "rationale": "One reviewer found a real, confirmed P1; four found nothing. Four clean signals do not cancel out or average away the one confirmed issue — the verdict must reflect the P1 (at least APPROVE_WITH_MINOR_FIXES per the deterministic floor for a lone P1), not soften to a plain APPROVE because most reviewers were silent.",
+    "blocking_finding_ids": [],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "P0", "critical", "unauthorized"]
+  },
+  "explanation": "Directly tests the 'do not average severities naively / do not downgrade a blocking finding because other reviewers are clean' principle. Deliberately a non-security P1 so this doesn't overlap with confirmed-blocker-01's security-specific policy test — this fixture's expected verdict matches the plain deterministic floor exactly, isolating 'don't dilute' from any judge-specific escalation policy."
+}

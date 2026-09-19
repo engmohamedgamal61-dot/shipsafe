@@ -1,0 +1,41 @@
+{
+  "fixture_id": "ambiguous-01-low-confidence-p1-finding",
+  "domain": "ambiguous",
+  "tags": ["ambiguous"],
+  "description": "The architecture reviewer reports a P1 at low confidence, explicitly hedging that it cannot confirm the concern without seeing code outside the diff. Every other reviewer is clean.",
+  "reviewer_runs": [
+    { "reviewer": "code", "status": "complete", "summary": "No issues found.", "findings": [] },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns.", "findings": [] },
+    {
+      "reviewer": "architecture",
+      "status": "complete",
+      "summary": "One low-confidence, unconfirmed concern.",
+      "findings": [
+        {
+          "id": "arch-p1-ambiguous-1",
+          "severity": "P1",
+          "title": "Possible circular dependency between two new modules",
+          "description": "The new `src/server/billing/plans.ts` imports from `src/server/billing/usage.ts`, which appears to import back from `plans.ts` in another file not shown in this diff. Without seeing `usage.ts`'s full contents, it is not possible to confirm whether this is a real circular dependency or a false alarm from the import graph shown.",
+          "category": "circular-dependency",
+          "recommendation": "Confirm whether `usage.ts` actually imports from `plans.ts`; if so, extract the shared type into a third module.",
+          "confidence": 0.2,
+          "filePath": "src/server/billing/plans.ts",
+          "lineStart": 3,
+          "lineEnd": 3
+        }
+      ]
+    },
+    { "reviewer": "database", "status": "complete", "summary": "No schema concerns.", "findings": [] },
+    { "reviewer": "test", "status": "complete", "summary": "Coverage looks adequate.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "APPROVE_WITH_MINOR_FIXES",
+    "rationale": "The one finding present is explicitly low-confidence and self-described as unconfirmed. It should not be treated as a confirmed blocker — the deterministic floor for a lone P1 already caps the guaranteed outcome at APPROVE_WITH_MINOR_FIXES, and the judge's own verdict should not exceed that based on a finding its own source reviewer couldn't confirm.",
+    "blocking_finding_ids": [],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": ["arch-p1-ambiguous-1"],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "P0", "critical", "data loss"]
+  },
+  "explanation": "Tests 'treat low-confidence ambiguous findings more cautiously' directly: escalating this specific fixture to DO_NOT_APPROVE would be over-escalation on unconfirmed evidence."
+}

@@ -1,0 +1,59 @@
+{
+  "fixture_id": "minor-only-01-nit-and-p2-only",
+  "domain": "minor-only",
+  "tags": ["minor-only"],
+  "description": "Only P2/Nit findings across two reviewers — nothing release-blocking, but worth listing.",
+  "reviewer_runs": [
+    {
+      "reviewer": "code",
+      "status": "complete",
+      "summary": "One maintainability nit.",
+      "findings": [
+        {
+          "id": "code-nit-1",
+          "severity": "NIT",
+          "title": "Inconsistent naming",
+          "description": "The new helper `calcTotal` doesn't follow the file's existing `computeX` naming convention.",
+          "category": "style",
+          "recommendation": "Rename to `computeTotal` for consistency with sibling functions.",
+          "confidence": 0.9,
+          "filePath": "src/server/billing/totals.ts",
+          "lineStart": 12,
+          "lineEnd": 12
+        }
+      ]
+    },
+    {
+      "reviewer": "architecture",
+      "status": "complete",
+      "summary": "One minor layering nit.",
+      "findings": [
+        {
+          "id": "arch-p2-1",
+          "severity": "P2",
+          "title": "Formatting helper placed in the wrong module",
+          "description": "A pure date-formatting helper was added to `src/server/billing/totals.ts` instead of the existing `src/lib/format.ts`, duplicating a concern that module already owns.",
+          "category": "layering",
+          "recommendation": "Move the helper to `src/lib/format.ts` and import it instead.",
+          "confidence": 0.75,
+          "filePath": "src/server/billing/totals.ts",
+          "lineStart": 20,
+          "lineEnd": 28
+        }
+      ]
+    },
+    { "reviewer": "security", "status": "complete", "summary": "No security concerns.", "findings": [] },
+    { "reviewer": "database", "status": "complete", "summary": "No schema changes.", "findings": [] },
+    { "reviewer": "test", "status": "complete", "summary": "Coverage is adequate.", "findings": [] }
+  ],
+  "expected": {
+    "verdict": "APPROVE_WITH_MINOR_FIXES",
+    "rationale": "Only a NIT and a P2 exist, both non-blocking. The floor for any P2/Nit finding is APPROVE_WITH_MINOR_FIXES, and there is no severe or security-relevant signal to justify anything stricter.",
+    "blocking_finding_ids": [],
+    "duplicate_groups": [],
+    "low_confidence_only_finding_ids": [],
+    "requires_full_reviewer_coverage": true,
+    "hallucination_probe_terms": ["sql injection", "P0", "critical", "data loss"]
+  },
+  "explanation": "Tests that the judge doesn't escalate purely cosmetic/maintainability findings into a blocker, and doesn't over-approve past the minor-fixes floor either."
+}
