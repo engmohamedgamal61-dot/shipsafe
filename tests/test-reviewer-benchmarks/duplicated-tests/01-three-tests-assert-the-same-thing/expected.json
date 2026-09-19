@@ -1,0 +1,26 @@
+{
+  "fixture_id": "duplicated-tests-01-three-tests-assert-the-same-thing",
+  "domain": "duplicated-tests",
+  "tags": ["buggy"],
+  "description": "Three separate tests all exercise the exact same code path (summing a two-element array) with different literal numbers — none tests a different array length, zero elements, or negative numbers, so the second and third tests add no incremental confidence over the first.",
+  "files": ["score.test.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["duplicated-tests.redundant-coverage", "duplicated-tests.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "TEST-DUPLICATEDTESTS-001",
+        "files": ["score.test.ts"],
+        "line_ranges": { "score.test.ts": [5, 15] },
+        "severity_range": ["Nit", "P2"],
+        "confidence_range": ["medium", "high"],
+        "justification": "All three tests call totalReviewScore with a two-element array and assert the sum — the same code path, the same array shape, only the literal numbers differ. None of them adds coverage the first test didn't already provide (no different array length, no empty array, no negative numbers, no single element). This is redundant test volume, not redundant confidence, and should be reported as ONE finding about the group, not three separate per-test observations.",
+        "category": "duplicated-tests.redundant-coverage"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "Tests both duplicated-test detection AND 'one root cause, one finding' discipline together: a reviewer that reports three separate findings (one per redundant test) instead of one finding covering all three has split a single root cause into multiple findings, which the scorer treats as duplicates against this one required entry."
+}

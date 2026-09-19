@@ -1,0 +1,15 @@
+{
+  "fixture_id": "safe-01-comprehensive-test-suite",
+  "domain": "safe",
+  "tags": ["safe", "false_positive_trap"],
+  "description": "A genuinely comprehensive test suite for totalReviewScore: happy path (multiple scores), a boundary case (single element), the documented error path (empty array throws), and a negative-number edge case. Zero findings expected.",
+  "files": ["score.test.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": [],
+    "required_findings": [],
+    "optional_findings": []
+  },
+  "explanation": "Every meaningful input class for this function is covered with a real, specific assertion on the actual computed value: a normal multi-element sum, the single-element boundary, the empty-array error path, and negative numbers. A reviewer that still demands more tests here (e.g. 'add a test for a very large array' with no evidence such a case matters) is inventing speculative coverage gaps rather than identifying a real one."
+}

@@ -1,0 +1,26 @@
+{
+  "fixture_id": "weak-assertions-01-tautological-assertion-proves-nothing",
+  "domain": "weak-assertions",
+  "tags": ["buggy"],
+  "description": "The only test for computeAutoMergeEligibility asserts `expect(result).toBeDefined()`, which passes regardless of whether the function returns true, false, or anything else non-undefined — it never checks the actual computed value.",
+  "files": ["verdict.test.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["weak-assertions.tautological", "weak-assertions.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "TEST-WEAKASSERTIONS-001",
+        "files": ["verdict.test.ts"],
+        "line_ranges": { "verdict.test.ts": [5, 8] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "`toBeDefined()` only fails if the function returns `undefined`. Since computeAutoMergeEligibility always returns a boolean on every code path, this assertion can never fail no matter how the function's logic is changed or broken — the test provides an illusion of coverage while proving nothing about correctness. A meaningful test would assert the actual boolean value for a specific input.",
+        "category": "weak-assertions.tautological"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete, self-contained weak-assertion case: the test's only assertion is visibly incapable of catching any regression in the function it claims to test, since the function's return type alone (always a defined boolean) makes `toBeDefined()` vacuously true."
+}

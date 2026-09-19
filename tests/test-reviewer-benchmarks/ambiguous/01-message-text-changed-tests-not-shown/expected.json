@@ -1,0 +1,26 @@
+{
+  "fixture_id": "ambiguous-01-message-text-changed-tests-not-shown",
+  "domain": "ambiguous",
+  "tags": ["ambiguous"],
+  "description": "A small change to an existing function's error-message wording, with no test file included in this diff. Whether this needs a test update depends entirely on whether an existing (unshown) test asserts the exact old message text — information this diff does not include.",
+  "files": ["sign-up-validation.ts"],
+  "expected": {
+    "needs_more_context_acceptable": true,
+    "allowed_categories": ["missing-tests.generic"],
+    "prohibited_categories": [],
+    "required_findings": [],
+    "optional_findings": [
+      {
+        "id": "opt-1",
+        "rule_id": "TEST-AMBIGUOUS-001",
+        "files": ["sign-up-validation.ts"],
+        "line_ranges": { "sign-up-validation.ts": [1, 6] },
+        "severity_range": ["Nit", "P2"],
+        "confidence_range": ["low", "low"],
+        "justification": "Unconfirmed by this fixture: an existing test elsewhere in the codebase might assert the exact message text (in which case this change would need a corresponding test update), or existing tests might only check the `ok: false` discriminant without asserting the message string (in which case no test update is needed at all). This diff shows only the production function, not any test file, so the correct answer is that this cannot be confirmed — not a confident assertion that a test update is required.",
+        "category": "missing-tests.generic"
+      }
+    ]
+  },
+  "explanation": "Mirrors the other four benchmarks' own ambiguous-fixture pattern: the three fully correct responses are (a) zero findings, (b) an explicit needs-more-context signal, or (c) a single low-confidence finding matching opt-1. A confident, high-severity 'this change lacks test coverage' finding is an overclaim, since whether coverage is actually missing depends entirely on test files this diff doesn't show — exactly the 'claim missing coverage... unless the change clearly requires new coverage' principle."
+}

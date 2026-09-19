@@ -1,0 +1,26 @@
+{
+  "fixture_id": "brittle-tests-01-asserts-internal-call-count",
+  "domain": "brittle-tests",
+  "tags": ["buggy"],
+  "description": "The only test for finalizeReview spies on an internal helper function and asserts only that it was called once — it never checks finalizeReview's actual return value or externally observable behavior, so the test is coupled to an implementation detail rather than the function's real contract.",
+  "files": ["finalize-review.test.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["brittle-tests.implementation-coupling", "brittle-tests.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "TEST-BRITTLETESTS-001",
+        "files": ["finalize-review.test.ts"],
+        "line_ranges": { "finalize-review.test.ts": [6, 10] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "This test never inspects finalizeReview's return value or any externally observable effect — it only asserts that an internal helper (computeAutoMergeEligibility) was invoked exactly once. A legitimate refactor that changes HOW finalizeReview computes its result (e.g. inlining the helper, calling it twice defensively, or replacing it entirely) would break this test even if the actual behavior is unchanged and correct — and conversely, the test would still pass if the helper's return value were silently discarded. It verifies an implementation detail, not the function's real contract.",
+        "category": "brittle-tests.implementation-coupling"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete, self-contained implementation-detail-coupling case: the single assertion (`toHaveBeenCalledTimes`) is visibly about call mechanics, not the return value or externally observable outcome of the function under test."
+}

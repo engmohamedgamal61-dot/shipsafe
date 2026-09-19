@@ -1,0 +1,26 @@
+{
+  "fixture_id": "mock-fidelity-01-mock-hides-real-integration-contract",
+  "domain": "mock-fidelity",
+  "tags": ["buggy"],
+  "description": "The Supabase client mock hand-crafts the exact response shape attachLatestReviewStatus expects to consume, so the test can only ever prove the code works against its own mock, never against the real Supabase query's actual behavior or contract.",
+  "files": ["attach-review-status.test.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["mock-fidelity.hides-real-contract", "mock-fidelity.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "TEST-MOCKFIDELITY-001",
+        "files": ["attach-review-status.test.ts"],
+        "line_ranges": { "attach-review-status.test.ts": [4, 12] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "The mock's `.select().in()` chain is fabricated purely to satisfy whatever the production code happens to call, and its return shape (`{ pull_request_id, status }`) exactly matches what the code destructures — by construction, this test can never catch a real bug like a missing `.order()`/`.limit()` in the real query, a renamed column, or a Supabase client behavior change, because the mock always returns exactly what the code wants. It proves the code's own internal wiring is self-consistent, not that it correctly integrates with the real Supabase contract.",
+        "category": "mock-fidelity.hides-real-contract"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete mock-fidelity case: the mock's shape is visibly hand-tailored to the consuming code (same field names, same nesting) rather than modeling the real Supabase client's actual response contract, which is exactly what makes it unable to catch a real integration break."
+}

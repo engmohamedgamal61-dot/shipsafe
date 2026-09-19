@@ -1,0 +1,26 @@
+{
+  "fixture_id": "async-mistakes-01-missing-await-on-rejection-assertion",
+  "domain": "async-mistakes",
+  "tags": ["buggy"],
+  "description": "The test calls `expect(ingestPullRequest(null)).rejects.toThrow()` but never awaits it and the test callback isn't async — the assertion's promise is never awaited, so the test function returns and is reported as passing before the assertion has actually resolved, regardless of whether ingestPullRequest actually rejects.",
+  "files": ["ingest.test.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["async-mistakes.missing-await", "async-mistakes.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "TEST-ASYNCMISTAKES-001",
+        "files": ["ingest.test.ts"],
+        "line_ranges": { "ingest.test.ts": [5, 7] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "`.rejects.toThrow()` returns a Promise that vitest/jest must await to actually run the assertion. The `it` callback here is synchronous and the expression's result is never returned or awaited, so the test framework has nothing to wait on — the test reports as passing immediately regardless of whether ingestPullRequest ever throws or resolves normally. This gives false confidence that the error path is tested when it is not actually being checked at all.",
+        "category": "async-mistakes.missing-await"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "The single most common async-test false-positive pattern in vitest/jest: an unawaited `.rejects`/`.resolves` assertion. Concretely, self-evidently broken from the diff alone — the `it` callback is not `async` and there is no `await`/`return` on the assertion expression."
+}

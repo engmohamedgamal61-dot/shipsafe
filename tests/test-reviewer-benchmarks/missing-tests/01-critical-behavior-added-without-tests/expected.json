@@ -1,0 +1,26 @@
+{
+  "fixture_id": "missing-tests-01-critical-behavior-added-without-tests",
+  "domain": "missing-tests",
+  "tags": ["buggy"],
+  "description": "computeAutoMergeEligibility encodes the entire auto-merge safety policy (require APPROVE, block on any P0/P1 finding) and is added with no accompanying test file at all in this diff.",
+  "files": ["verdict.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["missing-tests.critical-behavior", "missing-tests.generic"],
+    "prohibited_categories": [],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "TEST-MISSINGTESTS-001",
+        "files": ["verdict.ts"],
+        "line_ranges": { "verdict.ts": [1, 5] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "This function decides whether a pull request is safe to merge automatically with no human review — getting the boundary conditions wrong (e.g. treating an empty findings array or a non-P0/P1 severity string incorrectly) has real consequences, yet the diff includes no test file exercising any of its branches: APPROVE with no blocking findings, APPROVE with a P0/P1 finding, and a non-APPROVE verdict. This is exactly the 'critical behavior introduced without tests' archetype.",
+        "category": "missing-tests.critical-behavior"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "A concrete, unambiguous missing-tests case: the diff's only file is the untested production function itself, with a name and behavior ('auto-merge eligibility') that self-evidently matters. No unseen context is needed — the fixture shows the entire diff, and it contains zero tests."
+}

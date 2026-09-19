@@ -1,0 +1,15 @@
+{
+  "fixture_id": "safe-02-legitimate-clock-mock",
+  "domain": "safe",
+  "tags": ["safe", "false_positive_trap"],
+  "description": "Tests for isReviewStale use vi.setSystemTime to control the non-deterministic system clock while exercising the function's real logic against both sides of the staleness boundary. This is standard, necessary use of a test double for time-based code, not a mock that hides the real contract. Zero findings expected.",
+  "files": ["staleness.test.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": ["mock-fidelity.hides-real-contract", "mock-fidelity.generic"],
+    "required_findings": [],
+    "optional_findings": []
+  },
+  "explanation": "Controlling the system clock is the standard, correct way to write a deterministic test for time-dependent logic — it does not hide isReviewStale's real behavior the way `mock-fidelity-01`'s hand-crafted Supabase response does, because isReviewStale's own comparison logic is fully and genuinely exercised, only its non-deterministic input (the current time) is controlled. A reviewer that flags any use of vi.setSystemTime/vi.mock as inherently suspicious, without checking whether the mock replaces the logic under test or merely its non-deterministic inputs, fails this fixture."
+}

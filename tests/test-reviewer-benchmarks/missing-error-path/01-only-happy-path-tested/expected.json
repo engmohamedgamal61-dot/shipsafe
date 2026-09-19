@@ -1,0 +1,26 @@
+{
+  "fixture_id": "missing-error-path-01-only-happy-path-tested",
+  "domain": "missing-error-path",
+  "tags": ["buggy"],
+  "description": "totalReviewScore throws when called with an empty array (Array.prototype.reduce with no initial value), but its only test exercises a three-element happy-path array — the documented failure mode (an empty scores list, e.g. a PR with zero reviews) has no test coverage at all.",
+  "files": ["score.test.ts", "score.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["missing-error-path.untested-failure-mode", "missing-error-path.generic"],
+    "prohibited_categories": ["correctness.generic"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "TEST-MISSINGERRORPATH-001",
+        "files": ["score.test.ts"],
+        "line_ranges": { "score.test.ts": [4, 8] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "totalReviewScore's own implementation (scores.reduce((sum, score) => sum + score) with no initial value) throws a TypeError on an empty array — a realistic, easily-reached input (a PR with zero reviews). The test file's only test case is a three-element array; there is no test for an empty array, a single-element array, or negative scores. The test SUITE is incomplete for a function whose edge-case behavior is exactly this consequential.",
+        "category": "missing-error-path.untested-failure-mode"
+      }
+    ],
+    "optional_findings": []
+  },
+  "explanation": "Tests reviewer-lane discipline as well as coverage detection: score.ts's reduce-without-initial-value IS a real production bug, but flagging THAT bug is the Code Reviewer's job (see tests/code-benchmarks/edge-case-api-misuse/01-reduce-no-initial-value, which requires exactly the CODE reviewer to catch it). The Test Reviewer's job here is narrower and different: recognize that the test SUITE doesn't cover this failure mode at all, anchored to the test file, not a correctness finding on score.ts itself."
+}
