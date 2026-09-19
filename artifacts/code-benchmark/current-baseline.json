@@ -1,0 +1,450 @@
+{
+  "isCompatibilityBaseline": true,
+  "note": "This is a compatibility baseline of the CURRENT production Code Reviewer, measured as-shipped.",
+  "metadata": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-5",
+    "maxTokens": 4096,
+    "concurrency": 1,
+    "timeoutMs": 30000,
+    "versions": {
+      "codeBenchmarkSchemaVersion": "1.1.0",
+      "codeBenchmarkDatasetVersion": "phase1-10-of-10-r2",
+      "codeReviewerPromptVersion": "untracked-first-baseline-pass"
+    },
+    "runTimestamp": "2026-09-19T14:50:27.593Z"
+  },
+  "fixtures": [
+    {
+      "fixtureId": "ambiguous-01-unvalidated-discount-lookup",
+      "domain": "ambiguous",
+      "tags": [
+        "ambiguous"
+      ],
+      "status": "scored",
+      "passed": false,
+      "rawScore": -1,
+      "normalizedScore": 0.6666666666666666,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "error-handling",
+          "normalizedCategory": "error-handling.swallowed-exception",
+          "severity": "P2",
+          "confidence": "medium",
+          "file": "apply-discount.ts",
+          "lineStart": 11,
+          "lineEnd": 12,
+          "matchMethod": "unmatched",
+          "classification": "prohibited",
+          "matchedId": null,
+          "evidence": "`const discount = lookupDiscount(code);` is passed straight into `cart.total - discount` with no check that lookupDiscount returned a valid, defined numeric value. If lookupDiscount can return undefined/null for an invalid or unknown code (a common lookup pattern), the subtraction would silently produce NaN and corrupt the cart's total. The diff does not show discounts.ts, so the actual return contract of lookupDiscount is unconfirmed, but the calling code makes no defensive check regardless of that contract."
+        }
+      ],
+      "failureReasons": [
+        "false positive",
+        "overconfidence"
+      ],
+      "latencyMs": 14598,
+      "inputTokens": 3043,
+      "outputTokens": 1447,
+      "errorMessage": null,
+      "rawSummary": "The new applyDiscountCode function takes the result of lookupDiscount and directly subtracts it from cart.total without any validation of the returned value or bounds-checking on the result, which can lead to invalid cart states."
+    },
+    {
+      "fixtureId": "concurrency-01-foreach-async-no-await",
+      "domain": "concurrency",
+      "tags": [
+        "buggy",
+        "concurrency"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "concurrency.missing-await",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "notify.ts",
+          "lineStart": 7,
+          "lineEnd": 9,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "`subscriberIds.forEach(async (id) => {\n    await sendNotification(id);\n  });` uses Array.prototype.forEach with an async callback. forEach ignores the promises returned by its callback and does not wait for them to settle. As a result, `notifyAllSubscribers` will log `console.log(\"all subscribers notified\")` and resolve its returned promise immediately after scheduling the calls, without actually waiting for any of the sendNotification calls to complete. This contradicts the function's docstring, which promises to send a notification to every subscriber and log when done — the log actually fires before, not after, notifications complete. Additionally, if any sendNotification call rejects, the rejection is unhandled since forEach discards the returned promises, rather than being surfaced to the caller of notifyAllSubscribers."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 9529,
+      "inputTokens": 3022,
+      "outputTokens": 646,
+      "errorMessage": null,
+      "rawSummary": "The new notify.ts contains the classic Array.prototype.forEach + async callback anti-pattern: forEach does not await the async callbacks, so notifyAllSubscribers resolves and logs completion before the notifications have actually been sent, and any rejection from sendNotification becomes an unhandled promise rejection instead of propagating to the caller."
+    },
+    {
+      "fixtureId": "correctness-01-off-by-one-pagination",
+      "domain": "correctness",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 0.5,
+      "normalizedScore": 0.9166666666666666,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "correctness.off-by-one",
+          "severity": "P0",
+          "confidence": "high",
+          "file": "paginate.ts",
+          "lineStart": 7,
+          "lineEnd": 7,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "In `getPage`, `end` is computed as `start + pageSize`, which is already the correct exclusive end index for [unverified quote removed]. However, the code calls `items.slice(start, end + 1)`, which extends the slice by one extra element. This means every page returned will contain [unverified quote removed] items instead of `pageSize` items, and the extra item will be duplicated as the first item of the next page's results when paginating sequentially."
+        },
+        {
+          "index": 1,
+          "category": "error-handling",
+          "normalizedCategory": "error-handling.swallowed-exception",
+          "severity": "P2",
+          "confidence": "medium",
+          "file": "paginate.ts",
+          "lineStart": 5,
+          "lineEnd": 6,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_optional",
+          "matchedId": "opt-1",
+          "evidence": "The function does not validate that `pageNumber` is >= 1 or that `pageSize` is a positive number. If `pageNumber` is 0 or negative, or `pageSize` is 0 or negative, `start` and `end` can become negative or produce unexpected slice ranges, silently returning incorrect or empty results without any error."
+        }
+      ],
+      "failureReasons": [
+        "severity inflation"
+      ],
+      "latencyMs": 7662,
+      "inputTokens": 3008,
+      "outputTokens": 688,
+      "errorMessage": null,
+      "rawSummary": "The paginate.ts file introduces a `getPage` function with an off-by-one bug: it slices one extra element beyond the intended page size."
+    },
+    {
+      "fixtureId": "correctness-02-safe-half-open-range",
+      "domain": "correctness",
+      "tags": [
+        "safe",
+        "false_positive_trap"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [],
+      "failureReasons": [],
+      "latencyMs": 29406,
+      "inputTokens": 3179,
+      "outputTokens": 2693,
+      "errorMessage": null,
+      "rawSummary": "The new ranges.ts file adds getRange and chunk helpers. getRange is documented and named to represent a strict half-open index range [startIndex, endIndexExclusive), but it directly delegates to Array.prototype.slice without any validation, so negative indices are silently reinterpreted as offsets from the end of the array (and NaN inputs are silently treated as 0) rather than being treated as literal range boundaries. This contradicts the function's own docstring/contract (and the PR's 'safe-half-open-range' framing), producing results that don't correspond to the documented semantics for inputs that are entirely plausible for a range-index API (negative or out-of-bound indices)."
+    },
+    {
+      "fixtureId": "dead-code-01-unreachable-after-return",
+      "domain": "dead-code",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "dead-code.unreachable",
+          "severity": "P2",
+          "confidence": "high",
+          "file": "status-color.ts",
+          "lineStart": 11,
+          "lineEnd": 11,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "In getStatusColor, both branches of the if/else return a value, so control flow can never reach the line after the if/else block. The `console.log(`resolved status color for ${status}`);` statement is unreachable dead code and will never execute, meaning any intended logging of the resolved status color never happens."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 6142,
+      "inputTokens": 2998,
+      "outputTokens": 398,
+      "errorMessage": null,
+      "rawSummary": "The new status-color.ts file contains a console.log statement placed after both branches of the if/else already return, making it unreachable dead code that will never execute."
+    },
+    {
+      "fixtureId": "edge-case-api-misuse-01-reduce-no-initial-value",
+      "domain": "edge-case-api-misuse",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "error-handling",
+          "normalizedCategory": "error-handling.swallowed-exception",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "score.ts",
+          "lineStart": 5,
+          "lineEnd": 5,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "totalReviewScore calls `scores.reduce((sum, score) => sum + score)` without providing an initial accumulator value. If `scores` is an empty array (e.g., a pull request with no reviews yet), Array.prototype.reduce throws 'TypeError: Reduce of empty array with no initial value' instead of returning a sensible default like 0. This is a realistic edge case given the function's stated purpose of summing scores from every review on a PR, since a PR may have zero reviews."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 5341,
+      "inputTokens": 2969,
+      "outputTokens": 470,
+      "errorMessage": null,
+      "rawSummary": "The new totalReviewScore function uses Array.prototype.reduce without an initial value, which throws a TypeError when called with an empty array instead of returning 0."
+    },
+    {
+      "fixtureId": "error-handling-01-swallowed-exception-async",
+      "domain": "error-handling",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "error-handling",
+          "normalizedCategory": "error-handling.swallowed-exception",
+          "severity": "P1",
+          "confidence": "high",
+          "file": "reindex.ts",
+          "lineStart": 10,
+          "lineEnd": 12,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "In `reindexSearchDocuments`, any error thrown by `fetchDocumentsForWorkspace` or `searchIndex.bulkUpsert` is caught and only logged via `console.log(\"reindex failed\")`. The function then falls through and the returned promise resolves normally (function returns void), so callers have no way to know the reindex failed. The original error object is discarded entirely, losing stack trace and failure details, and no workspaceId context is included in the log, making failures hard to diagnose or retry."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 6616,
+      "inputTokens": 3078,
+      "outputTokens": 503,
+      "errorMessage": null,
+      "rawSummary": "The reindex function swallows all errors from fetching documents or bulk-upserting the search index, logging only a generic message and returning normally (a resolved Promise<void>). Callers cannot detect failure, and the actual error object/details are discarded."
+    },
+    {
+      "fixtureId": "maintainability-01-deep-nesting-duplication",
+      "domain": "maintainability",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "maintainability.duplication",
+          "severity": "P2",
+          "confidence": "high",
+          "file": "classify-order.ts",
+          "lineStart": 11,
+          "lineEnd": 39,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "classifyOrder nests three levels of if/else (isPriority, country, total > 1000), repeating the `if (order.total > 1000) {` check and similar string-building logic in all four leaf branches. This duplication makes the function harder to maintain: adding a new country, priority tier, or threshold requires editing multiple near-identical blocks, increasing the risk of inconsistent updates and bugs."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 5520,
+      "inputTokens": 3260,
+      "outputTokens": 430,
+      "errorMessage": null,
+      "rawSummary": "The new classifyOrder function is logically correct but implemented with deeply nested if/else branches that duplicate the total > 1000 check four times, producing an 8-branch decision tree that is hard to read, test, and extend."
+    },
+    {
+      "fixtureId": "performance-01-linear-scan-in-filter",
+      "domain": "performance",
+      "tags": [
+        "buggy"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [
+        "req-1"
+      ],
+      "requiredFindingsMissed": [],
+      "findings": [
+        {
+          "index": 0,
+          "category": "performance.algorithmic-complexity",
+          "severity": "P2",
+          "confidence": "high",
+          "file": "filter-blocked.ts",
+          "lineStart": 10,
+          "lineEnd": 10,
+          "matchMethod": "canonical_category_location",
+          "classification": "matched_required",
+          "matchedId": "req-1",
+          "evidence": "filterBlockedComments filters comments by calling `!blockedUserIds.includes(comment.authorId)` for every comment. Array.prototype.includes performs a linear scan of blockedUserIds, so for n comments and m blocked users this results in O(n*m) time complexity. This will scale poorly as either the comment list or the blocked-user list grows."
+        }
+      ],
+      "failureReasons": [],
+      "latencyMs": 6214,
+      "inputTokens": 3029,
+      "outputTokens": 537,
+      "errorMessage": null,
+      "rawSummary": "The new filterBlockedComments function performs an O(n*m) linear scan by calling Array.prototype.includes inside the filter callback for every comment, checking against the blockedUserIds array each time. For large comment lists or large blocked-user lists this becomes a significant performance bottleneck; converting blockedUserIds to a Set before filtering would reduce lookups to O(1) each, yielding overall O(n+m) complexity."
+    },
+    {
+      "fixtureId": "refactor-trap-01-long-but-correct-switch",
+      "domain": "refactor-trap",
+      "tags": [
+        "safe",
+        "false_positive_trap"
+      ],
+      "status": "scored",
+      "passed": true,
+      "rawScore": 1,
+      "normalizedScore": 1,
+      "hardFailure": false,
+      "requiredFindingsDetected": [],
+      "requiredFindingsMissed": [],
+      "findings": [],
+      "failureReasons": [],
+      "latencyMs": 7233,
+      "inputTokens": 3079,
+      "outputTokens": 475,
+      "errorMessage": null,
+      "rawSummary": "The diff adds a single new file, status-label.ts, containing a type-safe, exhaustive switch statement over the closed ReviewStatus union. Every member of the union is explicitly handled, and TypeScript's exhaustiveness checking will correctly verify that all code paths return a value, so no default case is required or missing here. No correctness, error-handling, performance, or maintainability defects were found in this code as written."
+    }
+  ],
+  "suite": {
+    "fixturesRun": 10,
+    "fixturesPassed": 9,
+    "fixturesFailed": 0,
+    "totalProducedFindings": 9,
+    "classificationCounts": {
+      "matched_required": 7,
+      "matched_optional": 1,
+      "duplicate": 0,
+      "prohibited": 1,
+      "unsupported_extra": 0,
+      "hallucinated_path": 0,
+      "fabricated_evidence": 0
+    },
+    "precision": 0.8888888888888888,
+    "recall": 1,
+    "p0Recall": 1,
+    "p1Recall": 1,
+    "falsePositiveRate": 0.1111111111111111,
+    "hallucinationRate": 0,
+    "fabricatedEvidenceRate": 0,
+    "speculativeRate": 0,
+    "duplicateRate": 0,
+    "severityAccuracyRate": 0.8571428571428571,
+    "categoryAccuracyRate": 1,
+    "confidenceCalibration": {
+      "high": {
+        "total": 7,
+        "correct": 7,
+        "rate": 1
+      },
+      "medium": {
+        "total": 2,
+        "correct": 1,
+        "rate": 0.5
+      },
+      "low": {
+        "total": 0,
+        "correct": 0,
+        "rate": 1
+      }
+    },
+    "byDomain": {
+      "ambiguous": 0.6666666666666666,
+      "concurrency": 1,
+      "correctness": 0.9583333333333333,
+      "dead-code": 1,
+      "edge-case-api-misuse": 1,
+      "error-handling": 1,
+      "maintainability": 1,
+      "performance": 1,
+      "refactor-trap": 1
+    },
+    "byTag": {
+      "ambiguous": 0.6666666666666666,
+      "buggy": 0.988095238095238,
+      "concurrency": 1,
+      "safe": 1,
+      "false_positive_trap": 1
+    },
+    "failedFixtures": []
+  },
+  "extraMetrics": {
+    "safeCodeFalsePositiveRate": 0,
+    "ambiguousOverclaimRate": 1,
+    "averageLatencyMs": 9826.1,
+    "totalInputTokens": 30665,
+    "totalOutputTokens": 8287
+  },
+  "fixturesWithProviderOrAdapterFailure": []
+}

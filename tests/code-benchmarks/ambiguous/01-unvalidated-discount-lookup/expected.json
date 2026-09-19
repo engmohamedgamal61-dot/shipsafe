@@ -1,0 +1,25 @@
+{
+  "fixture_id": "ambiguous-01-unvalidated-discount-lookup",
+  "domain": "ambiguous",
+  "tags": ["ambiguous"],
+  "description": "applyDiscountCode() subtracts whatever lookupDiscount(code) returns from cart.total with no bounds/validity check, and no clamp to zero — this is plausibly a bug (an invalid code or an unbounded discount could produce a negative or NaN total) but lookupDiscount's own implementation and contract are not included in this fixture, so it cannot be confirmed either way.",
+  "files": ["apply-discount.ts"],
+  "expected": {
+    "needs_more_context_acceptable": true,
+    "allowed_categories": ["edge-case.empty-input", "correctness.generic", "api-misuse.generic"],
+    "prohibited_categories": ["concurrency.missing-await", "performance.algorithmic-complexity", "dead-code.unreachable"],
+    "required_findings": [],
+    "optional_findings": [
+      {
+        "id": "opt-1",
+        "rule_id": "CODE-AMBIG-001",
+        "files": ["apply-discount.ts"],
+        "line_ranges": { "apply-discount.ts": [11, 12] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["low", "low"],
+        "justification": "Unconfirmed by this fixture: whether lookupDiscount can return undefined/NaN for an unrecognized code, or a value large enough to make cart.total go negative, depends entirely on lookupDiscount's own implementation and contract, which are not included here — the correct answer is that this cannot be confirmed from what's shown, not a confident assertion either way."
+      }
+    ]
+  },
+  "explanation": "Mirrors the security benchmark's own ambiguous-fixture pattern (a plausible defect whose confirmation depends on code not included in the diff): applyDiscountCode's own arithmetic is fine AS WRITTEN, but whether it's actually safe depends entirely on a guarantee from lookupDiscount() that this fixture deliberately does not show. The three fully correct responses are: (a) zero findings, (b) an explicit needs-more-context signal, or (c) a single low-confidence finding matching opt-1. A confident/high-confidence finding is scored as an overclaim."
+}

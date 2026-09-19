@@ -1,0 +1,25 @@
+{
+  "fixture_id": "edge-case-api-misuse-01-reduce-no-initial-value",
+  "domain": "edge-case-api-misuse",
+  "tags": ["buggy"],
+  "description": "totalReviewScore() calls Array.prototype.reduce with no initial value, which throws a TypeError on an empty array — a real, reachable crash if a pull request can have zero reviews, which the function's own doc comment implies is possible ('every review on a pull request').",
+  "files": ["score.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["edge-case.empty-input", "api-misuse.generic"],
+    "prohibited_categories": ["concurrency.missing-await", "performance.algorithmic-complexity"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "CODE-EDGECASE-001",
+        "files": ["score.ts"],
+        "line_ranges": { "score.ts": [5, 5] },
+        "severity_range": ["P1", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "Array.prototype.reduce, called with only a callback and no initial/seed value, throws 'TypeError: Reduce of empty array with no initial value' when called on an empty array. This function's own contract ('every review on a pull request') implies `scores` can legitimately be empty (a PR with no reviews yet) — a plausible, non-adversarial input this function does not handle, fully verifiable from the reduce() call's arity and JavaScript's own documented behavior for that case, with no external assumption required.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "Deliberately combines two of the benchmark's target categories in one fixture: this is simultaneously an edge-case-handling defect (empty array not handled) and a textbook API-misuse pattern (reduce without an initial value) — both are equally valid, correct framings of the SAME root cause, which is why both categories are allowed rather than picking one as the only correct label. Severity is P1: a live crash on a plausible, easily-reachable input (zero reviews) rather than a merely theoretical one."
+}

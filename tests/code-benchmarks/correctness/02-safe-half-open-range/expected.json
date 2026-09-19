@@ -1,0 +1,14 @@
+{
+  "fixture_id": "correctness-02-safe-half-open-range",
+  "domain": "correctness",
+  "tags": ["safe", "false_positive_trap"],
+  "description": "Two slicing helpers that use the exact same 'slice(x, x + size)'-shaped arithmetic as correctness-01's bug, but correctly — a reviewer that pattern-matches on shape alone (rather than checking whether the bound is actually off) should not flag either.",
+  "files": ["ranges.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": ["correctness.off-by-one", "correctness.generic"],
+    "required_findings": []
+  },
+  "explanation": "getRange() is a direct, correct pass-through to slice()'s own half-open semantics. chunk() increments by `size` and slices [i, i + size) each iteration — also correct, and superficially similar in shape to correctness-01's buggy `end + 1` (both involve slice + addition), which is exactly the false-positive trap: a reviewer must check whether the added value changes the range's correctness, not just whether a slice call involves addition at all."
+}

@@ -1,0 +1,25 @@
+{
+  "fixture_id": "maintainability-01-deep-nesting-duplication",
+  "domain": "maintainability",
+  "tags": ["buggy"],
+  "description": "classifyOrder() is functionally correct for every input but is four levels deep and repeats the same total > 1000 / country branch structure four times — a real maintainability defect (easy to introduce an inconsistency on the next edit), but not a functional bug, and must not be scored as one.",
+  "files": ["classify-order.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["maintainability.complexity", "maintainability.duplication", "maintainability.generic"],
+    "prohibited_categories": ["correctness.generic", "correctness.off-by-one"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "CODE-MAINTAIN-001",
+        "files": ["classify-order.ts"],
+        "line_ranges": { "classify-order.ts": [10, 40] },
+        "severity_range": ["Nit", "P2"],
+        "confidence_range": ["medium", "high"],
+        "justification": "The function is correct for all sixteen (isPriority x country x total-bucket) combinations, but nests four levels deep and repeats the same total > 1000 ? ... : ... branch under all four isPriority/country combinations. This is a real, visible maintainability concern (the four branches must be kept in sync by hand) but has zero functional impact today, so it must never be scored above P2/Nit — a P0/P1 severity here would be a severity-inflation failure, treating a style/structure concern as if it were a runtime defect.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "Tests that the reviewer can correctly identify a genuine maintainability issue (deep nesting + real structural duplication, not just 'this function is long') while keeping its severity calibrated to what maintainability issues actually are: a future-risk/readability concern, not a present defect. A reviewer that stays silent entirely under-serves the maintainability review responsibility; a reviewer that calls this 'a bug' or assigns P0/P1 over-escalates a style concern into a false urgency."
+}

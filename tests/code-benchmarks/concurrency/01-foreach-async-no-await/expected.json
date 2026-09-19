@@ -1,0 +1,26 @@
+{
+  "fixture_id": "concurrency-01-foreach-async-no-await",
+  "domain": "concurrency",
+  "tags": ["buggy", "concurrency"],
+  "description": "notifyAllSubscribers() passes an async callback to Array.prototype.forEach, which never awaits it — the function logs 'all subscribers notified' before any notification has actually completed, and any rejected promise inside the callback becomes an unhandled rejection.",
+  "files": ["notify.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["concurrency.missing-await"],
+    "prohibited_categories": ["performance.algorithmic-complexity", "dead-code.unreachable"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "CODE-CONCURRENCY-001",
+        "category": "concurrency.missing-await",
+        "files": ["notify.ts"],
+        "line_ranges": { "notify.ts": [7, 9] },
+        "severity_range": ["P1", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "Array.prototype.forEach does not wait for, or even look at, its callback's return value — passing an async function to it means each returned promise is discarded immediately. The `console.log` on line 10 therefore always runs before any `sendNotification` call has resolved, contradicting the function's own doc comment ('logs when done'), and a rejection from any individual `sendNotification` call becomes an unhandled promise rejection rather than being caught by anything in this function. This is a well-known, textbook JavaScript pitfall, fully verifiable from the two function signatures alone (forEach's synchronous, void-returning contract vs. an async callback).",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "The single most common real-world async/concurrency mistake in JavaScript/TypeScript: forEach silently ignores an async callback's returned promises. Tests whether the reviewer recognizes this specific, well-documented anti-pattern (as opposed to needing to trace actual concurrent execution semantics, which would be a much harder ask)."
+}

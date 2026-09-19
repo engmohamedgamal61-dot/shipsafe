@@ -32,6 +32,7 @@
   ],
   "exclude": [
     "node_modules",
-    "tests/security-benchmarks/**/fixture/**"
+    "tests/security-benchmarks/**/fixture/**",
+    "tests/code-benchmarks/**/fixture/**"
   ]
 }

@@ -1,0 +1,14 @@
+{
+  "fixture_id": "refactor-trap-01-long-but-correct-switch",
+  "domain": "refactor-trap",
+  "tags": ["safe", "false_positive_trap"],
+  "description": "An exhaustive switch over a five-member string-literal union, one case per value. Repetitive-LOOKING, but this is the correct, idiomatic pattern for an exhaustively-checked union in TypeScript — not a maintainability defect, and must not be escalated into a refactor suggestion or a finding of any kind.",
+  "files": ["status-label.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": [],
+    "prohibited_categories": ["maintainability.duplication", "maintainability.complexity", "maintainability.generic"],
+    "required_findings": []
+  },
+  "explanation": "This is the code-quality analogue of a security false-positive trap: the fixture LOOKS like it could be flagged (five similar-shaped case blocks, a shallow 'repetition' pattern-matcher's favorite target) but is actually the correct, TypeScript-exhaustiveness-checked idiom for mapping a literal union to display strings — converting it to a lookup object would not fix a defect, because there isn't one; it would just be a different, equally-valid style. A reviewer that suggests refactoring this into 'a lookup table to reduce repetition' is manufacturing a style preference into a finding, exactly the escalation this fixture exists to catch. Paired with maintainability-01, which IS a genuine duplication defect, so the benchmark can tell 'the reviewer recognizes real duplication' apart from 'the reviewer flags anything that merely looks repetitive.'"
+}

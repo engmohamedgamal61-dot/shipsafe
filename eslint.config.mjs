@@ -29,6 +29,13 @@ const eslintConfig = defineConfig([
     // imported or executed by the app, not meant to lint clean (see
     // tests/security-benchmarks/README.md).
     "tests/security-benchmarks/**/fixture/**",
+    // Code-benchmark fixture source snippets are likewise minimal,
+    // illustrative buggy/safe code samples (some deliberately import a
+    // sibling module that doesn't exist in the fixture set, since only
+    // the shown function's own logic is under test) — never imported or
+    // executed by the app, not meant to lint/typecheck clean (see
+    // tests/code-benchmarks/README.md).
+    "tests/code-benchmarks/**/fixture/**",
   ]),
 ]);
 

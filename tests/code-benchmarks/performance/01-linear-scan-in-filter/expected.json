@@ -1,0 +1,26 @@
+{
+  "fixture_id": "performance-01-linear-scan-in-filter",
+  "domain": "performance",
+  "tags": ["buggy"],
+  "description": "filterBlockedComments() calls Array.prototype.includes() on blockedUserIds inside a filter() callback — an O(n * m) scan structurally visible from the code alone, where an O(n + m) Set-based lookup is a direct, equivalent fix.",
+  "files": ["filter-blocked.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["performance.algorithmic-complexity"],
+    "prohibited_categories": ["correctness.generic", "correctness.off-by-one"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "CODE-PERF-001",
+        "category": "performance.algorithmic-complexity",
+        "files": ["filter-blocked.ts"],
+        "line_ranges": { "filter-blocked.ts": [10, 10] },
+        "severity_range": ["P2", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "blockedUserIds.includes(...) is an O(m) linear scan, invoked once per element of `comments` (n), making the whole call O(n * m) — this is directly, structurally visible from the code (no profiling or knowledge of typical list sizes required): every filter() call on an array is inherently one iteration per element, and Array.prototype.includes is documented to be linear. Replacing blockedUserIds with a Set and using Set.prototype.has would make this O(n + m). This is the 'concrete evidence' performance case: the algorithmic shape itself is the finding, independent of whether today's blockedUserIds is small.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "Tests that the reviewer can identify a real, structurally-evidenced algorithmic-complexity issue (nested linear scan) without needing runtime profiling data — the O(n*m) pattern is provable from the two nested iteration shapes (filter's per-element callback, includes' own linear scan) alone. Severity is capped at P1 (not P0) since this is an efficiency concern, not a correctness or availability failure by itself."
+}

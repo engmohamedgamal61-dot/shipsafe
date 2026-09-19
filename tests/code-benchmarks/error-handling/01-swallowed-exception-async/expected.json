@@ -1,0 +1,26 @@
+{
+  "fixture_id": "error-handling-01-swallowed-exception-async",
+  "domain": "error-handling",
+  "tags": ["buggy"],
+  "description": "reindexSearchDocuments()'s catch block discards the actual error object and logs a generic string with no rethrow — a caller awaiting this function sees it resolve successfully even when the reindex failed, and the real failure reason is never captured anywhere.",
+  "files": ["reindex.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["error-handling.swallowed-exception"],
+    "prohibited_categories": ["concurrency.missing-await", "performance.algorithmic-complexity"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "CODE-ERRHANDLE-001",
+        "category": "error-handling.swallowed-exception",
+        "files": ["reindex.ts"],
+        "line_ranges": { "reindex.ts": [11, 13] },
+        "severity_range": ["P1", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "The catch block never references `err` (the actual error is discarded), logs only a fixed string with no identifying detail, and does not rethrow, return a failure status, or otherwise signal failure to the caller. Since the function's return type is Promise<void> with no other signal, an awaiting caller cannot distinguish a successful reindex from a silently-failed one, and the specific cause of any failure is unrecoverable after the fact — fully visible from this one function with no external context needed.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "A realistic silent-failure pattern: the try/catch shape LOOKS like proper error handling (there IS a catch block, there IS a log statement), but discards the actual error and gives the caller no way to detect or diagnose the failure. Tests that the reviewer looks at what a catch block actually DOES, not just whether one is present."
+}

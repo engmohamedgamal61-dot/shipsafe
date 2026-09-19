@@ -1,0 +1,38 @@
+{
+  "fixture_id": "correctness-01-off-by-one-pagination",
+  "domain": "correctness",
+  "tags": ["buggy"],
+  "description": "getPage() slices with an off-by-one end bound, returning pageSize + 1 items per page and duplicating the boundary item across adjacent pages.",
+  "files": ["paginate.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["correctness.off-by-one", "correctness.generic"],
+    "prohibited_categories": ["performance.algorithmic-complexity", "concurrency.missing-await"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "CODE-CORRECTNESS-001",
+        "category": "correctness.off-by-one",
+        "files": ["paginate.ts"],
+        "line_ranges": { "paginate.ts": [7, 7] },
+        "severity_range": ["P1", "P1"],
+        "confidence_range": ["medium", "high"],
+        "justification": "items.slice(start, end + 1) is an inclusive-of-end slice where slice() itself is exclusive of its end argument — this returns pageSize + 1 elements per call, and the element at index `end` appears on both page N (as its extra trailing item) and page N + 1 (as its first item), a real, deterministic bug reproducible on any input with more than pageSize items. No external context is needed to confirm this — the arithmetic is fully visible in this one function.",
+        "must_reference_root_cause_once": true
+      }
+    ],
+    "optional_findings": [
+      {
+        "id": "opt-1",
+        "rule_id": "CODE-CORRECTNESS-002",
+        "category": "correctness.generic",
+        "files": ["paginate.ts"],
+        "line_ranges": { "paginate.ts": [4, 6] },
+        "severity_range": ["Nit", "P2"],
+        "confidence_range": ["low", "medium"],
+        "justification": "A real, independent secondary observation added after the first baseline run: getPage() never validates pageNumber >= 1 or pageSize > 0. A pageNumber of 0 or a negative value makes `start` zero or negative, and a negative start passed to Array.prototype.slice is interpreted as an offset from the END of the array rather than an error — silently returning confusing, wrong results instead of failing loudly. Distinct from req-1's off-by-one arithmetic bug (this is present even if the +1 bug were fixed), and never required, since a reviewer that focuses only on the primary off-by-one defect has still correctly solved this fixture's main point."
+      }
+    ]
+  },
+  "explanation": "The canonical half-open-range mistake: slice(start, end) is already correct and exclusive of `end`; adding + 1 makes it inclusive, which is the off-by-one. Paired with correctness-02 (the same slicing idiom used correctly) so the benchmark can tell 'reviewer understands half-open ranges' apart from 'reviewer pattern-matches on the shape of slice(x, y + 1) regardless of correctness'."
+}

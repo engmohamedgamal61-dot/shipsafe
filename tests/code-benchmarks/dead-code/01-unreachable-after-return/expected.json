@@ -1,0 +1,26 @@
+{
+  "fixture_id": "dead-code-01-unreachable-after-return",
+  "domain": "dead-code",
+  "tags": ["buggy"],
+  "description": "getStatusColor()'s if/else both return unconditionally, so the console.log() statement after the if/else block can never execute under any input.",
+  "files": ["status-color.ts"],
+  "expected": {
+    "needs_more_context_acceptable": false,
+    "allowed_categories": ["dead-code.unreachable"],
+    "prohibited_categories": ["correctness.generic", "concurrency.missing-await"],
+    "required_findings": [
+      {
+        "id": "req-1",
+        "rule_id": "CODE-DEADCODE-001",
+        "category": "dead-code.unreachable",
+        "files": ["status-color.ts"],
+        "line_ranges": { "status-color.ts": [11, 11] },
+        "severity_range": ["Nit", "P2"],
+        "confidence_range": ["medium", "high"],
+        "justification": "Both branches of the only if/else in this function return unconditionally, and the function has no loop or exception handling that could re-enter after a return — the console.log call after the if/else is unreachable under every possible input to `status`, which is a fully-typed two-value union. This is provable by control-flow inspection alone.",
+        "must_reference_root_cause_once": true
+      }
+    ]
+  },
+  "explanation": "The clearest possible unreachable-code case: a statement placed after two unconditionally-returning branches. Severity capped at Nit/P2 since dead code, on its own, doesn't misbehave at runtime — it's a cleanliness/clarity issue (and here, mildly suspicious that a log statement was intended to run but the code was restructured around it), not a functional defect."
+}
